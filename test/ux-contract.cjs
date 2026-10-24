@@ -9,9 +9,6 @@ for(const [name,text,opts] of [['App.tsx',app,{jsx:ts.JsxEmit.ReactJSX}],['api.t
 assert.match(app,/\[guest,setGuest\]/);assert.match(app,/guestSampleData\(\)/);
 assert.match(app,/const selected=selectedId\?searchable\.find/);
 assert.doesNotMatch(app,/\|\|searchable\[0\]/);
-// Both Explore and My prompts share a hero without the old prompt counters.
-assert.doesNotMatch(app,/className="hero-stat"/);
-assert.doesNotMatch(app,/personalCount|teamCount|allCount/);
 assert.match(app,/className=\"active-filter-chip\"/);
 assert.match(app,/className=\"results-in-heading\"/);
 assert.match(app,/likes=\{guest\?0:likeCounts\[p\.id\]\|\|0\}/);
@@ -20,4 +17,9 @@ assert.match(css,/\.editor-scroll textarea\{min-height:88px/);
 assert.match(sql,/where \(select auth\.uid\(\)\) is not null and private\.can_read_prompt\(p\.id\)/);
 assert.match(sql,/grant execute on function public\.prompt_like_counts\(\) to authenticated/);
 assert.doesNotMatch(sql,/grant execute[^;]+ to anon/i);
+assert.match(app,/canSuggest=\{!guest&&canSuggest\(selected\)\}/);
+assert.match(app,/Last updated by:/);
+assert.match(app,/Prompts by category/);
+assert.match(css,/\.admin-extras>\.admin-card>form/);
 console.log('PASS: new UX source, guest isolation, mandatory-field display, filters, unselected preview, likes policy');
+

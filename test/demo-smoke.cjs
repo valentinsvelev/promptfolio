@@ -28,13 +28,19 @@ const body={title:'Example prompt',description:'Sample',content:'Analyse {{notes
  d=await api.loadData();assert.ok(d.categories.some(c=>c.name==='Legal'));
  await api.execute('update_app_settings',{days:45,password_hours:24});
  d=await api.loadData();assert.equal(d.settings[0].retention_days,45);
- // Changing an approved team prompt creates reviewable content without replacing the official version.
+ // Team prompts never accept direct edits; even their members suggest changes.
  const teamPrompt=d.prompts.find(p=>p.owner_team_id===d.members.find(m=>m.user_id===api.demoIdentity.id).team_id);
  const officialId=teamPrompt.official_version_id;
- const newId=await api.execute('save_prompt_version',{pid:teamPrompt.id,payload:{...body,title:'Revised manager prompt'},note:'Update approved'});
+ await assert.rejects(api.execute('save_prompt_version',{pid:teamPrompt.id,payload:{...body,title:'Direct edit blocked'},note:'Direct edit'}),/suggested and approved/);
+ await assert.rejects(api.execute('restore_prompt_version',{pid:teamPrompt.id,source_version_id:officialId,note:'Bypass'}),/suggestion/);
+ const proposalId=await api.execute('propose_improvement',{pid:teamPrompt.id,payload:{...body,title:'Revised team prompt'},explanation:'Improve clarity'});
+ d=await api.loadData();assert.equal(d.proposals.find(p=>p.id===proposalId).status,'open');
+ assert.equal(d.prompts.find(p=>p.id===teamPrompt.id).official_version_id,officialId);
+ await api.execute('set_proposal_under_review',{proposal_id:proposalId});
+ const newId=await api.execute('review_improvement_proposal',{proposal_id:proposalId,accept:true,reason:''});
  d=await api.loadData();assert.equal(d.prompts.find(p=>p.id===teamPrompt.id).official_version_id,officialId);
  assert.equal(d.versions.find(v=>v.id===newId).approval_status,'under_review');
  await api.execute('review_prompt_version',{vid:newId,approve:true,reason:''});
  d=await api.loadData();assert.equal(d.prompts.find(p=>p.id===teamPrompt.id).official_version_id,newId);
- console.log('PASS: demo CRUD, history, restoration, soft delete/recovery, categories, settings and approved-version protection');
+ console.log('PASS: demo CRUD, history, restoration, soft delete/recovery, categories, settings and team suggestion-only version protection');
 })().catch(err=>{console.error(err);process.exitCode=1});

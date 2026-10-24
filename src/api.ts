@@ -105,7 +105,7 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     result=record.id;
   } else if(name==='save_prompt_version') {
     const prompt = p(args.pid);
-    if(!canEdit(prompt)) throw Error('You cannot edit this prompt.');
+    if(!canEdit(prompt) || prompt?.owner_team_id) throw Error('Team prompt changes must be suggested and approved by the owning team manager.');
     const official = d.versions.find(v=>v.id===prompt!.official_version_id);
     const v=addVersion(prompt!.id,args.payload as PromptBody,official?.approval_status==='approved'?'under_review':'experimental',String(args.note||''));
     prompt!.latest_version_id=v.id;
@@ -127,7 +127,7 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     else { v.approval_status='deprecated';v.decision='rejected';v.decision_reason=String(args.reason||''); }
   } else if(name==='propose_improvement') {
     const prompt=p(args.pid);
-    if(!prompt || !prompt.owner_team_id || member(prompt.owner_team_id)) throw Error('Cross-team prompts only.');
+    if(!prompt || !prompt.owner_team_id || prompt.deleted_at || prompt.lifecycle==='archived' || (!member(prompt.owner_team_id) && (prompt.lifecycle!=='published' || !d.members.some(m=>m.user_id===currentId)))) throw Error('You need access to this team prompt to suggest a change.');
     const proposal:Proposal={id:uuid(),prompt_id:prompt.id,author_id:currentId,proposed_content:args.payload as PromptBody,rationale:String(args.explanation||''),status:'open',created_at:now()};
     d.proposals.push(proposal);result=proposal.id;
   } else if(name==='review_improvement_proposal') {
@@ -167,7 +167,7 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     proposal.status='under_review';
   } else if(name==='restore_prompt_version') {
     const prompt=p(args.pid);const source=d.versions.find(v=>v.id===args.source_version_id&&v.prompt_id===prompt?.id);
-    if(!canEdit(prompt)||!source)throw Error('No permission to restore version.');
+    if(!canEdit(prompt)||!source||prompt?.owner_team_id)throw Error('Team version restorations require a manager-reviewed suggestion.');
     const approved=d.versions.find(v=>v.id===prompt!.official_version_id)?.approval_status==='approved';
     const payload:PromptBody={title:source.title,description:source.description,content:source.content,category:source.category,tags:source.tags,usage_instructions:source.usage_instructions,example_inputs:source.example_inputs,expected_outputs:source.expected_outputs,compatible_models:source.compatible_models};
     const v=addVersion(prompt!.id,payload,prompt!.owner_team_id&&approved?'under_review':'experimental',`Restored from v${source.version_number}: ${String(args.note||'')}`);

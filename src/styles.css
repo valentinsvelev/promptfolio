@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 /* HEADLINE SIZES — edit these three values to scale headings throughout Promptfolio. */
 :root {
-  --pf-page-title-size: clamp(34px, 3.2vw, 48px);  /* Explore, My prompts, Teams, Reviews, Admin */
+  --pf-page-title-size: clamp(28px, 3vw, 40px);  /* Explore, My prompts, Teams, Reviews, Admin */
   --pf-welcome-title-size: clamp(38px, 3.5vw, 52px); /* Login / signup welcome */
   --pf-dialog-title-size: 23px;                      /* Create prompt and other dialogs */
 }
@@ -25,7 +25,7 @@
 .hero-stat-row strong{font-family:Manrope,sans-serif;min-width:39px;font-size:24px;font-weight:800;line-height:1.2;letter-spacing:-.055em;color:#343b49;font-variant-numeric:tabular-nums}
 .hero-stat-row span{font-size:11px;font-weight:650;letter-spacing:.005em;color:#8993a1}
 .field-label{display:inline-flex;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:12px;font-weight:750;color:#485467;line-height:1.4}
-.field-label .required{font-size:15px;line-height:1;color:#db485d;font-weight:900}
+.field-label .required{font-size:15px;color:#db485d;font-weight:900}
 .field-label .hint{font-weight:500;color:#969fae;margin:0 0 0 2px;font-size:11px}
 .editor-scroll textarea{min-height:88px;resize:vertical;max-width:100%}
 .editor-scroll textarea.prompt-editor-textarea{min-height:195px}
@@ -153,3 +153,37 @@
 @media (prefers-reduced-motion:reduce) {
   .keyword-search {animation:none;}
 }
+
+/* Prompt row provenance and team insight cards */
+.row-byline{display:flex;align-items:center;gap:5px;flex-wrap:wrap;line-height:1.6}
+.row-byline .meta-bullet{margin:0 3px}
+.row-byline .row-likes{display:inline-flex;align-items:center;gap:3px;margin-left:3px}
+.team-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:19px 0 18px;border-bottom:1px solid var(--line)}
+.team-stats>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.team-stats strong{font:800 21px Manrope,sans-serif;letter-spacing:-.045em;color:var(--ink)}
+.team-stats span{font-size:10px;color:var(--muted);font-weight:650}
+.team-category-section{padding:18px 0 21px;border-bottom:1px solid var(--line)}
+.team-section-title{font-size:11px;font-weight:800;color:#4e5969;margin:0 0 14px}
+.team-categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 20px}
+.team-category{min-width:0}
+.team-category-label{display:flex;gap:8px;justify-content:space-between;font-size:11px;color:#788294;margin-bottom:7px}
+.team-category-label span{overflow-wrap:anywhere}
+.team-category-label strong{font-weight:750;color:#526078}
+.team-category-track{height:5px;background:#eff1f5;border-radius:999px;overflow:hidden}
+.team-category-track span{display:block;height:100%;background:#8995eb;border-radius:999px}
+.team-no-prompts{font-size:11px;color:#929cab}
+.team-members-title{margin-top:20px;margin-bottom:3px}
+/* Separate admin form groups instead of allowing fields to visually collide. */
+.admin-extras>.admin-card{min-width:0}
+.admin-extras>.admin-card>form{margin:22px 0 25px;gap:18px}
+.admin-extras>.admin-card>form .btn{margin-top:7px;max-width:100%;white-space:normal;text-align:center;min-height:43px}
+.admin-extras>.admin-card>.field{margin-top:18px}
+.admin-extras>.admin-card>.field+.field{margin-top:20px}
+.admin-extras>.admin-card>.field+.btn{margin-top:20px;align-self:flex-start}
+.admin-extras>.admin-card>.admin-actions{margin-top:13px}
+.admin-extras>.admin-card>.divider-line{margin:28px 0 25px}
+.admin-team-actions{margin-top:18px}
+.admin-team-actions>div{gap:12px;min-width:0}
+.admin-team-actions>div>strong{min-width:0;overflow-wrap:anywhere}
+.admin-team-actions>div>.btn{flex-shrink:0}
+@media(max-width:650px){.team-categories{grid-template-columns:1fr}.admin-team-actions>div{flex-wrap:wrap}}
