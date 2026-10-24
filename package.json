@@ -1,0 +1,28 @@
+{
+  "name": "promptfolio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test:demo": "node test/demo-smoke.cjs",
+    "verify": "npm run test:demo && npm run test:ux && npm run typecheck && npm run build",
+    "test:ux": "node test/ux-contract.cjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.75.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.0"
+  }
+}
