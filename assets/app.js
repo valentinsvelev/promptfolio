@@ -135,7 +135,7 @@ function filterPrompts(){let list=state.prompts.filter(p=>!p.deleted_at&&officia
  if(state.filter==='Personal')list=list.filter(p=>p.owner_user_id===userId());
  else if(state.filter==='My teams')list=list.filter(p=>p.owner_team_id&&isMember(p.owner_team_id));
  else if(state.filter==='Other teams')list=list.filter(p=>p.owner_team_id&&!isMember(p.owner_team_id));
- else if(state.filter==='Saved')list=list.filter(p=>state.favorites.some(f=>f.prompt_id===p.id&&f.user_id===userId()));
+ else if(state.filter==='Favorites')list=list.filter(p=>state.favorites.some(f=>f.prompt_id===p.id&&f.user_id===userId()));
  const q=state.query.toLowerCase().trim();if(q)list=list.filter(p=>{const v=official(p);return[v.title,v.description,v.category,v.content,(v.tags||[]).join(' '),teamName(p.owner_team_id)].join(' ').toLowerCase().includes(q)});
  list.sort((a,b)=>$('sortBy').value==='title'?official(a).title.localeCompare(official(b).title):String(b.updated_at).localeCompare(String(a.updated_at)));
  return list;
@@ -209,7 +209,7 @@ async function submitEditor(){const payload=formPayload();if(!payload.title||!pa
  message(state.editorMode==='propose'?'Improvement submitted for manager review':state.editorMode==='edit'?'New version saved':'Prompt saved to your library');
  }catch(err){$('composerMessage').textContent=errorMessage(err)}finally{$('submitPrompt').disabled=false}
 }
-function renderSimple(){const titles={mine:['PERSONAL WORKSPACE','My prompts.','Everything you own personally or co-manage through your teams.'],teams:['COLLABORATE','Your teams.','Shared libraries and membership. A user without membership sees no teams.'],review:['GOVERNANCE','Review queue.','Compare proposed changes against the official version before you approve.'],admin:['ADMINISTRATION','Manage your space.','Manage teams and members. Account administration happens in Supabase.']};
+function renderSimple(){const titles={mine:['PERSONAL WORKSPACE','My prompts.','Everything you own personally or co-manage through your teams.'],teams:['COLLABORATE','Your teams.','Shared libraries and membership. A user without membership sees no teams.'],review:['GOVERNANCE','Review queue.','Compare proposed changes against the official version before you approve.'],admin:['ADMINISTRATION','Manage promptfolio.','Manage teams and members. Account administration happens in Supabase.']};
  const [ey,title,description]=titles[state.view]||titles.mine;$('simpleEyebrow').textContent=ey;$('simpleTitle').innerHTML=h(title.slice(0,-1))+'<span class="blue-period">.</span>';$('simpleDescription').textContent=description;
  const root=$('simpleContent');root.innerHTML='';if(state.view==='mine')renderMine(root);if(state.view==='teams')renderTeams(root);if(state.view==='review')renderReviews(root);if(state.view==='admin')renderAdmin(root);
 }

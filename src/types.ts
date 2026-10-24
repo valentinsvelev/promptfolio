@@ -1,5 +1,5 @@
 export type View = 'explore' | 'mine' | 'teams' | 'reviews' | 'notifications' | 'admin';
-export type Filter = 'All prompts' | 'Personal' | 'My teams' | 'Other teams' | 'Saved';
+export type Filter = 'All prompts' | 'Personal' | 'My teams' | 'Other teams' | 'Favorites';
 export type Lifecycle = 'draft' | 'published' | 'archived';
 export type Approval = 'experimental' | 'under_review' | 'approved' | 'deprecated';
 export type PromptBody = {

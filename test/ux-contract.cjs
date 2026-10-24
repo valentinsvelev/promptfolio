@@ -9,8 +9,9 @@ for(const [name,text,opts] of [['App.tsx',app,{jsx:ts.JsxEmit.ReactJSX}],['api.t
 assert.match(app,/\[guest,setGuest\]/);assert.match(app,/guestSampleData\(\)/);
 assert.match(app,/const selected=selectedId\?searchable\.find/);
 assert.doesNotMatch(app,/\|\|searchable\[0\]/);
-assert.match(app,/aria-label=\{guest\?\'Sample prompt count\':\'Accessible prompt counts\'\}/);
-assert.match(app,/\{!guest&&<><div className="hero-stat-row"/);
+// Both Explore and My prompts share a hero without the old prompt counters.
+assert.doesNotMatch(app,/className="hero-stat"/);
+assert.doesNotMatch(app,/personalCount|teamCount|allCount/);
 assert.match(app,/className=\"active-filter-chip\"/);
 assert.match(app,/className=\"results-in-heading\"/);
 assert.match(app,/likes=\{guest\?0:likeCounts\[p\.id\]\|\|0\}/);

@@ -1,0 +1,14 @@
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const sql = fs.readFileSync('supabase/004_signup_email_allowlist.sql','utf8');
+const ui = fs.readFileSync('src/App.tsx','utf8');
+assert(sql.includes('promptfolio_security.allowed_signup_emails'));
+assert(sql.includes('public.promptfolio_before_user_created'));
+assert(sql.includes('security invoker'));
+assert(sql.includes('supabase_auth_admin'));
+assert(sql.includes('enable row level security'));
+assert(sql.includes('revoke execute on function'));
+assert(sql.includes('Registration is invite-only'));
+assert(ui.includes('Registration is invite-only. Use an approved email address.'));
+assert(fs.readFileSync('SIGNUP_ALLOWLIST_SETUP.md','utf8').includes('Authentication → Hooks'));
+console.log('PASS: invite-only signup migration and UI contract');

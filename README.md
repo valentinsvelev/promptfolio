@@ -19,6 +19,8 @@ React · TypeScript · Vite · Supabase (Auth + PostgreSQL)
 ## Run locally
 
 ```bash
+git clone https://github.com/valentinsvelev/promptfolio.git
+cd promptfolio
 npm install
 npm run dev
 ```
