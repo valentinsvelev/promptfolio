@@ -187,3 +187,54 @@
 .admin-team-actions>div>strong{min-width:0;overflow-wrap:anywhere}
 .admin-team-actions>div>.btn{flex-shrink:0}
 @media(max-width:650px){.team-categories{grid-template-columns:1fr}.admin-team-actions>div{flex-wrap:wrap}}
+
+
+/* UI refinement: persistent header, centered auth, prompt attribution, build footer */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* The login/create-account form is now the only authentication panel. */
+.auth-layout {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100dvh - 145px);
+  padding: 52px 0;
+  gap: 0;
+}
+.auth-layout .auth-card {
+  width: 100%;
+  max-width: 455px;
+  margin: 0 auto;
+}
+
+/* Creator and last-editor attribution lives in the selected prompt detail only. */
+.author-line-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 5px;
+  min-width: 0;
+}
+.author-line-meta strong { color: #515b68; }
+
+.footer-build-info {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 3px;
+  row-gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .auth-layout { min-height: calc(100dvh - 145px); padding: 30px 0; }
+  .auth-layout .auth-card { max-width: 455px; }
+}
+@media (max-width: 420px) {
+  .footer .container { gap: 8px; }
+  .footer-build-info { justify-content: flex-start; }
+}

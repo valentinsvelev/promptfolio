@@ -52,5 +52,3 @@ gh variable set VITE_SUPABASE_PUBLISHABLE_KEY --body "YOUR_PUBLISHABLE_KEY"
 ```
 
 Enable **Settings → Pages → GitHub Actions** if Pages is not already configured. Then push to `main` or run `gh workflow run deploy.yml`.
-
-> **Proof-of-concept notice:** Guest mode uses sample data. Real sign-ups and shared prompts require Supabase configuration; additional email-provider configuration may be needed for invitations beyond your initial test accounts.
