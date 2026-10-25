@@ -1,0 +1,22 @@
+/* Lightweight source checks for modal-based keyword search and filters. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const app = fs.readFileSync('src/App.tsx', 'utf8');
+const css = fs.readFileSync('src/styles.css', 'utf8');
+assert.match(app, /\[searchExpanded,setSearchExpanded\]=useState\(false\)/);
+assert.match(app, /\[advancedOpen,setAdvancedOpen\]=useState\(false\)/);
+assert.match(app, /keyword-search-trigger/);
+assert.match(app, /Keywords search<\/span>/);
+assert.match(app, /searchExpanded&&<Modal/);
+assert.match(app, /advancedOpen&&<Modal/);
+assert.match(app, /ref=\{searchInputRef\}/);
+assert.match(app, /onChange=\{e=>\{setQuery\(e\.target\.value\);setSelectedId\(null\)\}\}/);
+assert.match(app, /className="filters-dialog-scroll"/);
+assert.match(app, /className="active-filter-chip"/);
+assert.match(app, /onClose=\{\(\)=>setSearchExpanded\(false\)\}/);
+assert.doesNotMatch(app, /className="keyword-search is-expanded"/);
+assert.doesNotMatch(app, /className="search-field"/);
+assert.match(css, /\.filter-controls\{justify-content:center\}/);
+assert.match(css, /\.filters-dialog \.advanced-filters/);
+assert.match(css, /\.topbar \.main-nav>\.nav-link:first-child\{margin-left:auto\}/);
+console.log('PASS: centered mobile controls, modal keyword search and advanced filters');

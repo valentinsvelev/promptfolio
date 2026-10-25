@@ -1,6 +1,6 @@
-# Promptfolio
+# PromptFolio
 
-A collaborative library for creating, discovering, and improving AI prompts.
+A collaborative portfolio for creating, discovering, and improving AI prompts.
 
 **Live app:** https://valentinsvelev.github.io/promptfolio/
 
