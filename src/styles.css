@@ -492,3 +492,49 @@
   .settings-form>p{min-height:0}
 }
 @media(max-width:360px){.settings-stat{padding:13px 11px}.settings-stat strong{font-size:23px}}
+
+/* Guided Explore: centered primary choice and direct category/team chips */
+.explore-choice-all{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;gap:13px;min-height:228px;
+}
+.explore-choice-all .choice-symbol{display:grid;place-items:center;width:48px;height:48px;grid-row:auto}
+.explore-choice-all strong{font-size:17px}
+.explore-choice-all small{grid-column:auto;max-width:260px}
+.explore-choice-select{
+  display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+  gap:16px;min-height:228px;cursor:default;
+}
+.explore-choice-select:hover{border-color:#e3e7ee;background:#fff;box-shadow:none}
+.choice-select-heading{display:flex;flex-direction:column;gap:5px}
+.choice-select-heading strong{font:800 16px/1.4 Manrope,sans-serif;color:var(--ink)}
+.choice-select-heading small{font-size:12px;line-height:1.5;color:var(--muted)}
+.choice-chip-list{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.choice-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid #e1e5ed;background:#fff;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:700;color:#556172;line-height:1.25;transition:background .15s,border-color .15s;color-scheme:light}
+.choice-chip span{color:#9aa4b3;font-size:11px;font-weight:600}
+.choice-chip:hover{border-color:#aab3f5;background:#fafbff}
+.choice-chip.is-chosen{border-color:#7d8beb;background:#eef0ff;color:#4454cb}
+.choice-chip.is-chosen span{color:#6573cf}
+.choice-chip:focus-visible,.choice-apply:focus-visible{outline:3px solid #a5adfa;outline-offset:2px}
+.choice-apply{display:flex;align-items:center;justify-content:center;gap:9px;align-self:flex-start;margin-top:auto;min-height:36px;border:1px solid #252d39;border-radius:9px;background:#252d39;color:#fff;font-size:12px;font-weight:700;padding:9px 13px}
+.choice-apply:hover:not(:disabled){background:#3e4858}
+.choice-apply:disabled{opacity:.45;cursor:not-allowed}
+/* Title-only rows preserve selection, keyboard navigation and multi-export controls. */
+.prompt-row.prompt-row-listified,
+.bulk-prompt-row.is-selecting .prompt-row.prompt-row-listified{
+  display:flex;align-items:center;gap:0;min-height:0;padding:16px 14px 16px 16px;
+  width:100%;text-align:left;
+}
+.prompt-row-listified .row-title{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.prompt-row-listified.is-active{background:#f0f1ff}
+@media(max-width:760px){
+  .explore-choice-all,.explore-choice-select{min-height:0}
+  .explore-choice-all{padding:25px 16px}
+  .explore-choice-select{padding:22px 18px}
+}
+@media(max-width:580px){
+  .choice-chip{font-size:11px;padding:8px 10px}
+  .choice-chip-list{gap:7px}
+  .choice-apply{width:100%}
+  .prompt-row.prompt-row-listified,.bulk-prompt-row.is-selecting .prompt-row.prompt-row-listified{padding:15px 11px}
+}

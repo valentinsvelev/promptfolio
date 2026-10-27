@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttri
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, Bell, BookOpen, Check, CheckCircle2, ChevronDown,
   ChevronRight, Clipboard, Clock3, Copy, FileClock, FileText, FolderClosed, Heart,
-  LayoutGrid, Lightbulb, LockKeyhole, LogOut, Menu, MoreHorizontal, Plus, RotateCcw,
+  LayoutGrid, Lightbulb, List, LockKeyhole, LogOut, Menu, MoreHorizontal, Plus, RotateCcw,
   Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Tag, Trash2, Users,
   X, type LucideIcon,
 } from 'lucide-react';
@@ -158,8 +158,9 @@ function PromptEditor({editor,body,teams,categoryNames,existingTitles,onNewCateg
   </form></Modal>;
 }
 
-function PromptRow({prompt,version,active,onSelect,owner,likes}:{prompt:Prompt;version:PromptVersion;active:boolean;onSelect:()=>void;owner:string;likes:number}){
-  return <button className={`prompt-row ${active?'is-active':''}`} onClick={onSelect}><IconTile category={version.category}/><span className="row-body"><span className="row-caps">{version.category}<span className="caps-dot">·</span>{owner}</span><strong className="row-title">{version.title}</strong><span className="row-description">{version.description||'A ready-to-use prompt shared with the library.'}</span><span className="row-byline">{when(prompt.updated_at)}<span className="row-likes" aria-label={`${likes} likes`}><Heart size={13}/>{likes}</span></span></span><ChevronRight size={18} className="row-arrow"/></button>;
+function PromptRow({prompt,version,active,onSelect,owner,likes,listified}:{prompt:Prompt;version:PromptVersion;active:boolean;onSelect:()=>void;owner:string;likes:number;listified:boolean}){
+  if(listified)return <button type="button" className={`prompt-row prompt-row-listified ${active?'is-active':''}`} onClick={onSelect} aria-label={`Open ${version.title}`}><strong className="row-title">{version.title}</strong></button>;
+  return <button type="button" className={`prompt-row ${active?'is-active':''}`} onClick={onSelect}><IconTile category={version.category}/><span className="row-body"><span className="row-caps">{version.category}<span className="caps-dot">·</span>{owner}</span><strong className="row-title">{version.title}</strong><span className="row-description">{version.description||'A ready-to-use prompt shared with the library.'}</span><span className="row-byline">{when(prompt.updated_at)}<span className="row-likes" aria-label={`${likes} likes`}><Heart size={13}/>{likes}</span></span></span><ChevronRight size={18} className="row-arrow"/></button>;
 }
 
 function PromptDetail({prompt,version,latest,history,owner,creator,lastEditor,canEdit,canSuggest,saved,onFavorite,onDuplicate,onEdit,onSuggest,onLifecycle,onDelete,onShare,onRequest,onRestore,onArchive,onCompare,onDeprecate,onRecommend,recommended,isManager,readOnly,onClose}:{
@@ -197,9 +198,9 @@ export default function App(){
   const [filter,setFilter]=useState<Filter>('All prompts');const [query,setQuery]=useState('');
   // The three primary Explore tabs start at a choice screen, not an open library.
   const [exploreChoice,setExploreChoice]=useState<'all'|'categories'|'teams'|null>(null);
-  const [choiceDialogOpen,setChoiceDialogOpen]=useState(false);
   const [chosenItems,setChosenItems]=useState<string[]>([]);
   const [choiceDraft,setChoiceDraft]=useState<string[]>([]);
+  const [listified,setListified]=useState(false);
   // Bulk exports use the versions already visible and authorised in this session.
   const [bulkExportOpen,setBulkExportOpen]=useState(false);
   const [exportIds,setExportIds]=useState<string[]>([]);
@@ -373,19 +374,18 @@ export default function App(){
     } catch(e){notify(e instanceof Error?e.message:'Could not import the file.');}
   }
   function resetDiscovery(){
-    setExploreChoice(null);setChosenItems([]);setChoiceDraft([]);setChoiceDialogOpen(false);
+    setExploreChoice(null);setChosenItems([]);setChoiceDraft([]);
     setQuery('');setSearchExpanded(false);setAdvancedOpen(false);
     setFacets({team:'',owner:'',category:'',tag:'',lifecycle:'',approval:'',updated:''});
     setRecommendOnly(false);setSelectedId(null);setShowMobileDetail(false);
     setBulkExportOpen(false);setExportIds([]);
   }
-  function openChoiceDialog(){setChoiceDraft([]);setChoiceDialogOpen(true)}
   function toggleChoiceItem(item:string){setChoiceDraft(old=>old.includes(item)?old.filter(x=>x!==item):[...old,item])}
   function applyChoice(){
     if(!choiceDraft.length)return;
     setChosenItems(choiceDraft);
     setExploreChoice(filter==='My teams'?'teams':'categories');
-    setChoiceDialogOpen(false);setSelectedId(null);
+    setSelectedId(null);setShowMobileDetail(false);
   }
   const visibleExportRecords=searchable.filter(p=>exportIds.includes(p.id)).map(p=>({prompt:p,version:official(p)})).filter((item):item is {prompt:Prompt;version:PromptVersion}=>!!item.version);
   function exportSelected(format:'json'|'markdown'){
@@ -428,20 +428,28 @@ export default function App(){
   {!awaitingExploreChoice&&<div className="filter-controls"><button className={`filters-button ${advancedOpen?'is-open':''}`} aria-label="Filters" title="Filters" aria-haspopup="dialog" aria-expanded={advancedOpen} onClick={()=>{setSearchExpanded(false);setAdvancedOpen(true)}}><SlidersHorizontal size={16}/><span className="filter-control-label">Filters</span>{Object.values(facets).filter(Boolean).length+(recommendOnly?1:0)>0&&<span className="active-filter-count">{Object.values(facets).filter(Boolean).length+(recommendOnly?1:0)}</span>}</button>
   <button type="button" className={`filters-button keyword-search-trigger ${searchExpanded?'is-open':''}`} aria-label="Keywords search" title="Keywords search" aria-haspopup="dialog" aria-expanded={searchExpanded} onClick={()=>{setAdvancedOpen(false);setSearchExpanded(true)}}><Search size={16}/><span className="filter-control-label">Keywords search</span>{query.trim()&&<span className="search-active-dot" aria-label="Active keyword search"/>}</button>
   {guidedExplore&&exploreChoice!==null&&<button type="button" className="filters-button back-to-selection" onClick={resetDiscovery} title="Back to selection" aria-label="Back to selection"><ArrowLeft size={16}/><span className="back-selection-label">Back to selection</span></button>}
+  {view==='explore'&&<button type="button" className={`filters-button listify-toggle ${listified?'is-open':''}`} onClick={()=>setListified(v=>!v)} aria-pressed={listified} aria-label={listified?'Detailed view':'Listify'} title={listified?'Detailed view':'Listify'}><List size={16}/><span className="filter-control-label">{listified?'Detailed view':'Listify'}</span></button>}
   <div className="active-filters">{(Object.entries(facets) as [keyof typeof facets,string][]).filter(([,v])=>!!v).map(([key,value])=>{const label=key==='team'?data.teams.find(t=>t.id===value)?.name||value:key==='owner'?data.profiles.find(t=>t.id===value)?.display_name||value:value;return <button key={key} className="active-filter-chip" onClick={()=>facet(key,'')} aria-label={`Remove ${key} filter`}><span>{labelize(key)}: {label}</span><X size={13}/></button>})}{recommendOnly&&<button className="active-filter-chip" onClick={()=>setRecommendOnly(false)}>Recommended <X size={13}/></button>}</div></div>}
   {awaitingExploreChoice?<section className="explore-choice-screen" aria-label="Choose how to browse prompts">
     <h2>{filter==='All prompts'?'Explore the library':filter==='Personal'?'Your personal library':'Your team libraries'}</h2>
     <p>Choose how you would like to browse this collection.</p>
     <div className="explore-choice-actions">
-      <button type="button" className="explore-choice-card" onClick={()=>{setExploreChoice('all');setSelectedId(null)}}>
-        <span className="choice-symbol"><LayoutGrid size={22}/></span><strong>Show all prompts</strong>
-        <small>Browse every prompt available in this view.</small><ArrowRight className="choice-arrow" size={18}/>
+      <button type="button" className="explore-choice-card explore-choice-all" onClick={()=>{setExploreChoice('all');setSelectedId(null)}}>
+        <span className="choice-symbol"><LayoutGrid size={24}/></span>
+        <strong>Show all prompts</strong>
+        <small>Browse every prompt available in this view.</small>
       </button>
-      <button type="button" className="explore-choice-card" onClick={openChoiceDialog}>
-        <span className="choice-symbol"><SlidersHorizontal size={22}/></span>
-        <strong>{filter==='My teams'?'Show certain teams':'Show certain categories'}</strong>
-        <small>{filter==='My teams'?'Choose one or more of your teams.':'Choose one or more categories to browse.'}</small><ArrowRight className="choice-arrow" size={18}/>
-      </button>
+      <section className="explore-choice-card explore-choice-select" aria-labelledby="explore-select-title">
+        <div className="choice-select-heading">
+          <strong id="explore-select-title">{filter==='My teams'?'Select teams':'Select categories'}</strong>
+          <small>Choose one or more {filter==='My teams'?'teams':'categories'} to browse.</small>
+        </div>
+        <div className="choice-chip-list" role="group" aria-label={filter==='My teams'?'Choose teams':'Choose categories'}>
+          {filter==='My teams'?teamChoices.map(t=><button key={t.id} type="button" className={`choice-chip ${choiceDraft.includes(t.id)?'is-chosen':''}`} aria-pressed={choiceDraft.includes(t.id)} onClick={()=>toggleChoiceItem(t.id)}>{t.name}<span>{t.count}</span></button>):categoryChoices.map(c=><button key={c} type="button" className={`choice-chip ${choiceDraft.includes(c)?'is-chosen':''}`} aria-pressed={choiceDraft.includes(c)} onClick={()=>toggleChoiceItem(c)}>{c}<span>{choicePool.filter(p=>official(p)?.category===c).length}</span></button>)}
+          {(filter==='My teams'?teamChoices.length:categoryChoices.length)===0&&<p className="choice-empty">No {filter==='My teams'?'teams':'categories'} available yet.</p>}
+        </div>
+        <button type="button" className="choice-apply" disabled={!choiceDraft.length} onClick={applyChoice}>Show selected prompts <ArrowRight size={15}/></button>
+      </section>
     </div>
   </section>:view==='mine'&&mineTrash?<div className="trash-container"><div className="list-top"><h2>Recently deleted</h2></div>{data.prompts.filter(p=>p.deleted_at&&canEdit(p)).map(p=><div className="trash-item" key={p.id}><Trash2 size={18}/><div><strong>{official(p)?.title||'Untitled prompt'}</strong><p>Deleted {when(p.deleted_at||undefined)}</p></div><Button variant="outline" onClick={()=>doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:true}),'Prompt restored.')}><RotateCcw size={15}/> Restore</Button></div>)}{!data.prompts.some(p=>p.deleted_at&&canEdit(p))&&<Empty title="Your trash is empty" description="Deleted prompts will appear here while they can still be restored." icon={Trash2}/>}</div>:<div className="workspace"><div className="prompt-results"><div className="list-top"><h2>{view==='mine'?'Your prompts':filter==='All prompts'?'All prompts':filter}<span className="results-in-heading">· {searchable.length} {searchable.length===1?'result':'results'}</span></h2>
   <button type="button" className="bulk-export-trigger" onClick={()=>{setBulkExportOpen(x=>!x);setExportIds([])}} aria-pressed={bulkExportOpen}><Copy size={15}/>{bulkExportOpen?'Cancel selection':'Export multiple'}</button>
@@ -453,7 +461,7 @@ export default function App(){
   </div>}
   <div className="rows">{searchable.map(p=>{const v=official(p);return v&&<div key={p.id} className={`bulk-prompt-row ${bulkExportOpen?'is-selecting':''}`}>
     {bulkExportOpen&&<label className="bulk-prompt-checkbox"><input type="checkbox" aria-label={`Select ${v.title} for export`} checked={exportIds.includes(p.id)} onChange={e=>setExportIds(old=>e.target.checked?[...old,p.id]:old.filter(id=>id!==p.id))}/></label>}
-    <PromptRow prompt={p} version={v} owner={owner(p)} likes={guest?0:likeCounts[p.id]||0} active={selected?.id===p.id} onSelect={()=>{setSelectedId(p.id);setShowMobileDetail(true)}}/>
+    <PromptRow prompt={p} version={v} listified={view==='explore'&&listified} owner={owner(p)} likes={guest?0:likeCounts[p.id]||0} active={selected?.id===p.id} onSelect={()=>{setSelectedId(p.id);setShowMobileDetail(true)}}/>
   </div>})}
   {searchable.length===0&&<Empty title="No prompts found" description="Try a different search, or be the first to add a prompt." action={guest?undefined:<Button onClick={()=>setEditor({mode:'create'})}><Plus size={16}/> Create prompt</Button>}/>}
   </div></div><aside className={`detail-panel ${showMobileDetail?'mobile-visible':''}`}>{selected&&selectedVersion?<PromptDetail key={selected.id+selectedVersion.id} prompt={selected} version={selectedVersion} latest={selectedLatest} history={history(selected.id)} owner={owner(selected)} creator={person(selected.created_by)} lastEditor={person(selectedLatest?.author_id||selectedVersion.author_id)} canEdit={!guest&&canEdit(selected)} canSuggest={!guest&&canSuggest(selected)} saved={!guest&&data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===selected.id)} onClose={()=>setShowMobileDetail(false)} recommended={data.recommendations.some(r=>r.prompt_id===selected.id)} isManager={!guest&&isManager(selected.owner_team_id)} readOnly={guest} onCompare={versionId=>setCompare({prompt:selected,versionId})} onDeprecate={()=>{const reason=window.prompt("Why should this prompt be deprecated?");if(reason&&reason.trim().length>=3)void doAction(()=>execute('deprecate_team_prompt',{pid:selected.id,reason}),'Team prompt deprecated.')}} onRecommend={()=>doAction(()=>execute('set_team_recommendation',{pid:selected.id,recommend:!data.recommendations.some(r=>r.prompt_id===selected.id)}),'Recommendation updated.')} onFavorite={()=>{if(guest){notify('Sign in to like or save a prompt.');return;}void toggleFavorite(selected)}} onDuplicate={()=>{if(guest){notify('Sign in to duplicate prompts.');return;}void copySelected(selected)}} onEdit={()=>setEditor({mode:selected.owner_team_id?'suggest':'edit',prompt:selected})} onSuggest={()=>setEditor({mode:'suggest',prompt:selected})} onLifecycle={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:selected.lifecycle==='published'?'draft':'published'}),'Lifecycle updated.')} onDelete={()=>askDelete(selected)} onRequest={id=>doAction(()=>execute('request_version_review',{vid:id}),'Sent for review.')} onArchive={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:'archived'}),'Prompt archived.')} onRestore={()=>doAction(()=>execute('soft_delete_prompt',{pid:selected.id,recover:true}),'Prompt restored.')} onShare={()=>{setShareId(selected.id);setShareTeam(ownTeamList[0]?.id||'')}}/>:<Empty title="Select a prompt" description="Choose a prompt from the list to preview it here."/>}</aside></div>}</>:<><section className="subhero"><h1>{view==='teams'?'Manage your teams':view==='reviews'?'Review queue':'Manage promptfolio'}<span className="accent-dot">.</span></h1><p>{view==='teams'?'Get an overview of the teams you are in.':view==='reviews'?'GitHub pull requests for your prompts!':'Control how promptfolio works.'}</p></section>
@@ -465,13 +473,6 @@ export default function App(){
   </main>}
   <footer className="footer"><div className="container"><span>© Promptfolio</span><span className="footer-build-info"><span>v{packageInfo.version}</span><span className="footer-dot">·</span><span>Last updated: {when(__PROMPTFOLIO_BUILD_DATE__)}</span></span></div></footer>
   <input aria-label="Import prompt file" type="file" accept=".json,.md,application/json,text/markdown" ref={importRef} hidden onChange={e=>{void importPrompt(e.target.files?.[0]);e.target.value=''}}/>
-  {choiceDialogOpen&&<Modal onClose={()=>setChoiceDialogOpen(false)}><div className="choice-dialog">
-    <div className="modal-header"><div><h2>{filter==='My teams'?'Choose teams':'Choose categories'}</h2><p>Select one or more {filter==='My teams'?'teams':'categories'} to show matching prompts.</p></div><button type="button" className="round-icon" aria-label="Close selection" onClick={()=>setChoiceDialogOpen(false)}><X size={19}/></button></div>
-    <div className="choice-dialog-options">{filter==='My teams'?teamChoices.map(t=><label key={t.id} className="choice-option"><input type="checkbox" checked={choiceDraft.includes(t.id)} onChange={()=>toggleChoiceItem(t.id)}/><span><strong>{t.name}</strong><small>{t.count} prompt{t.count===1?'':'s'}</small></span></label>):categoryChoices.map(c=><label key={c} className="choice-option"><input type="checkbox" checked={choiceDraft.includes(c)} onChange={()=>toggleChoiceItem(c)}/><span><strong>{c}</strong><small>{choicePool.filter(p=>official(p)?.category===c).length} prompt(s)</small></span></label>)}
-      {(filter==='My teams'?teamChoices.length:categoryChoices.length)===0&&<p className="choice-empty">No {filter==='My teams'?'teams':'categories'} are available for this view yet.</p>}
-    </div>
-    <div className="choice-dialog-actions"><span>{choiceDraft.length} selected</span><Button variant="outline" type="button" onClick={()=>setChoiceDialogOpen(false)}>Cancel</Button><Button disabled={!choiceDraft.length} type="button" onClick={applyChoice}>Show prompts <ArrowRight size={15}/></Button></div>
-  </div></Modal>}
   {searchExpanded&&<Modal onClose={()=>setSearchExpanded(false)}><div className="search-dialog">
     <div className="modal-header"><div><h2>Keywords search</h2><p>Find prompts by title, content, tags, or team.</p></div><button className="round-icon" type="button" aria-label="Close keywords search" onClick={()=>setSearchExpanded(false)}><X size={19}/></button></div>
     <form role="search" className="search-dialog-form" onSubmit={e=>{e.preventDefault();setSearchExpanded(false)}}>
