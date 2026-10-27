@@ -6,7 +6,7 @@ import {
   Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Tag, Trash2, Users,
   X, type LucideIcon,
 } from 'lucide-react';
-import {accountAdmin, changePassword, client, demoIdentity, execute, favorite, guestSampleData, identity, isDemo, loadData, loadLikeCounts, resetPassword, signIn, signOut, signUp, updateDisplayName, updatePassword} from './api';
+import {accountAdmin, changePassword, client, demoIdentity, execute, favorite, guestSampleData, identity, isDemo, loadData, loadLikeCounts, resetPassword, signIn, signOut, signUp, updateDisplayName, loadListifyPreference, saveListifyPreference, updatePassword} from './api';
 import {blankBody, emptyData, type AppData, type Filter, type Identity, type Member, type Prompt, type PromptBody, type PromptVersion, type Proposal, type ReviewItem, type View} from './types';
 import packageInfo from '../package.json';
 
@@ -199,12 +199,15 @@ export default function App(){
   // The three primary Explore tabs start at a choice screen, not an open library.
   const [exploreChoice,setExploreChoice]=useState<'all'|'categories'|'teams'|null>(null);
   const [chosenItems,setChosenItems]=useState<string[]>([]);
-  const [choiceDraft,setChoiceDraft]=useState<string[]>([]);
   const [listified,setListified]=useState(false);
+  const [listifyLoadedFor,setListifyLoadedFor]=useState<string|null>(null);
+  // Serialize saves so rapid toggles cannot overwrite a newer choice.
+  const listifySaveQueue=useRef<Promise<void>>(Promise.resolve());
   // Bulk exports use the versions already visible and authorised in this session.
   const [bulkExportOpen,setBulkExportOpen]=useState(false);
   const [exportIds,setExportIds]=useState<string[]>([]);
   const [searchExpanded,setSearchExpanded]=useState(false);
+  const [manualSearchOpen,setManualSearchOpen]=useState(false);
   const [selectedId,setSelectedId]=useState<string|null>(null); const [showMobileDetail,setShowMobileDetail]=useState(false);
   const [editor,setEditor]=useState<EditorState|null>(null);const [confirm,setConfirm]=useState<null|{title:string;description:string;confirm:string;run:()=>Promise<void>}>(null);
   const [shareId,setShareId]=useState<string|null>(null);const [shareTeam,setShareTeam]=useState('');
@@ -248,6 +251,24 @@ export default function App(){
   const [reviewReason,setReviewReason]=useState<Record<string,string>>({});
   const notify=useCallback((m:string)=>{setToast(m);setTimeout(()=>setToast(''),4200)},[]);
   const reload=useCallback(async()=>{const [records,counts]=await Promise.all([loadData(),loadLikeCounts()]);setData(records);setLikeCounts(counts);},[]);
+  // User-specific preference loads from Supabase after authentication; not browser cache.
+  useEffect(()=>{
+    let active=true;
+    setListifyLoadedFor(null);
+    setListified(false);
+    if(!user){return()=>{active=false};}
+    const uid=user.id;
+    void loadListifyPreference(uid).then(enabled=>{
+      if(!active)return;
+      setListified(enabled);
+      setListifyLoadedFor(uid);
+    }).catch(error=>{
+      if(!active)return;
+      setListifyLoadedFor(uid);
+      notify(error instanceof Error?`Could not load Listify preference: ${error.message}`:'Could not load Listify preference.');
+    });
+    return()=>{active=false};
+  },[user?.id,notify]);
   useEffect(()=>{
     let active=true;
     (async()=>{try{if(isDemo){setReady(true);return;}const me=await identity();if(!active)return;setUser(me);if(me)await reload();}catch(e){notify(e instanceof Error?e.message:'Unable to load library.')}finally{if(active)setReady(true)}})();
@@ -343,6 +364,8 @@ export default function App(){
   const blocked=data.account_controls.find(c=>c.user_id===user?.id);
   const categoryNames=data.categories.map(c=>c.name);
   const facet=(k:keyof typeof facets,v:string)=>{setFacets(f=>({...f,[k]:v}));setSelectedId(null)};
+  // Shared by the manual-search card and the existing Filters dialog.
+  const filterControls=<div className="advanced-filters"><label>Team<select value={facets.team} onChange={e=>facet('team',e.target.value)}><option value="">Any team</option>{data.teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><label>Owner<select value={facets.owner} onChange={e=>facet('owner',e.target.value)}><option value="">Any owner</option>{data.profiles.map(pr=><option key={pr.id} value={pr.id}>{pr.display_name}</option>)}</select></label><label>Category<select value={facets.category} onChange={e=>facet('category',e.target.value)}><option value="">Any category</option>{categoryNames.map(c=><option key={c}>{c}</option>)}</select></label><label>Tag<select value={facets.tag} onChange={e=>facet('tag',e.target.value)}><option value="">Any tag</option>{[...new Set(data.versions.flatMap(v=>v.tags))].sort().map(t=><option key={t}>{t}</option>)}</select></label><label>Lifecycle<select value={facets.lifecycle} onChange={e=>facet('lifecycle',e.target.value)}><option value="">Any status</option>{['draft','published','archived'].map(v=><option key={v}>{v}</option>)}</select></label><label>Approval<select value={facets.approval} onChange={e=>facet('approval',e.target.value)}><option value="">Any approval</option>{['experimental','under_review','approved','deprecated'].map(v=><option key={v}>{v}</option>)}</select></label><label>Updated after<input type="date" value={facets.updated} onChange={e=>facet('updated',e.target.value)}/></label><label className="check-filter"><input type="checkbox" checked={recommendOnly} onChange={e=>setRecommendOnly(e.target.checked)}/> Manager recommended</label></div>;
   async function submitEditor(payload:PromptBody,teamId:string|null,publish:boolean,note:string){
     const result=await doAction(async()=>{
       if(editor?.mode==='create')return execute('create_prompt',{payload,team_id:teamId,publish});
@@ -374,18 +397,43 @@ export default function App(){
     } catch(e){notify(e instanceof Error?e.message:'Could not import the file.');}
   }
   function resetDiscovery(){
-    setExploreChoice(null);setChosenItems([]);setChoiceDraft([]);
-    setQuery('');setSearchExpanded(false);setAdvancedOpen(false);
+    setExploreChoice(null);setChosenItems([]);
+    setQuery('');setSearchExpanded(false);setAdvancedOpen(false);setManualSearchOpen(false);
     setFacets({team:'',owner:'',category:'',tag:'',lifecycle:'',approval:'',updated:''});
     setRecommendOnly(false);setSelectedId(null);setShowMobileDetail(false);
     setBulkExportOpen(false);setExportIds([]);
   }
-  function toggleChoiceItem(item:string){setChoiceDraft(old=>old.includes(item)?old.filter(x=>x!==item):[...old,item])}
-  function applyChoice(){
-    if(!choiceDraft.length)return;
-    setChosenItems(choiceDraft);
+  // Manual search uses the same keyword and facet state as the results toolbar.
+  // Choosing another discovery route starts with a clean search.
+  function clearManualSearch(){
+    setQuery('');
+    setFacets({team:'',owner:'',category:'',tag:'',lifecycle:'',approval:'',updated:''});
+    setRecommendOnly(false);
+    setSelectedId(null);
+  }
+  function submitManualSearch(){
+    setManualSearchOpen(false);
+    setChosenItems([]);
+    setExploreChoice('all');
+    setSelectedId(null);
+    setShowMobileDetail(false);
+  }
+  // Selecting a category or team immediately opens its prompts (one choice at a time).
+  function openChoiceItem(item:string){
+    clearManualSearch();
+    setChosenItems([item]);
     setExploreChoice(filter==='My teams'?'teams':'categories');
     setSelectedId(null);setShowMobileDetail(false);
+  }
+  function toggleListify(){
+    if(user && listifyLoadedFor!==user.id)return; // Avoid overwriting an unhydrated preference.
+    const next=!listified;
+    setListified(next);
+    if(!user)return; // Guest preview has no Supabase identity.
+    const uid=user.id;
+    const pending=listifySaveQueue.current.catch(()=>undefined).then(()=>saveListifyPreference(uid,next));
+    listifySaveQueue.current=pending;
+    void pending.catch(error=>notify(error instanceof Error?`Could not save Listify preference: ${error.message}`:'Could not save Listify preference.'));
   }
   const visibleExportRecords=searchable.filter(p=>exportIds.includes(p.id)).map(p=>({prompt:p,version:official(p)})).filter((item):item is {prompt:Prompt;version:PromptVersion}=>!!item.version);
   function exportSelected(format:'json'|'markdown'){
@@ -430,30 +478,34 @@ export default function App(){
     <h2>{filter==='All prompts'?'Explore the library':filter==='Personal'?'Your personal library':'Your team libraries'}</h2>
     <p>Choose how you would like to browse this collection.</p>
     <div className="explore-choice-actions">
-      <button type="button" className="explore-choice-card explore-choice-all" onClick={()=>{setExploreChoice('all');setSelectedId(null)}}>
+      <section className="explore-choice-card explore-choice-select" aria-labelledby="explore-select-title">
+        <div className="choice-select-heading">
+          <strong id="explore-select-title">{filter==='My teams'?'Select teams':'Select categories'}</strong>
+          <small>Tap a {filter==='My teams'?'team':'category'} to browse its prompts.</small>
+        </div>
+        <div className="choice-chip-list" role="group" aria-label={filter==='My teams'?'Choose a team':'Choose a category'}>
+          {filter==='My teams'?teamChoices.map(t=><button key={t.id} type="button" className="choice-chip" onClick={()=>openChoiceItem(t.id)}>{t.name}<span>{t.count}</span></button>):categoryChoices.map(c=><button key={c} type="button" className="choice-chip" onClick={()=>openChoiceItem(c)}>{c}<span>{choicePool.filter(p=>official(p)?.category===c).length}</span></button>)}
+          {(filter==='My teams'?teamChoices.length:categoryChoices.length)===0&&<p className="choice-empty">No {filter==='My teams'?'teams':'categories'} available yet.</p>}
+        </div>
+      </section>
+      <button type="button" className="explore-choice-card explore-choice-all" onClick={()=>{clearManualSearch();setExploreChoice('all');setSelectedId(null)}}>
         <span className="choice-symbol"><LayoutGrid size={24}/></span>
         <strong>Show all prompts</strong>
         <small>Browse every prompt available in this view.</small>
       </button>
-      <section className="explore-choice-card explore-choice-select" aria-labelledby="explore-select-title">
-        <div className="choice-select-heading">
-          <strong id="explore-select-title">{filter==='My teams'?'Select teams':'Select categories'}</strong>
-          <small>Choose one or more {filter==='My teams'?'teams':'categories'} to browse.</small>
-        </div>
-        <div className="choice-chip-list" role="group" aria-label={filter==='My teams'?'Choose teams':'Choose categories'}>
-          {filter==='My teams'?teamChoices.map(t=><button key={t.id} type="button" className={`choice-chip ${choiceDraft.includes(t.id)?'is-chosen':''}`} aria-pressed={choiceDraft.includes(t.id)} onClick={()=>toggleChoiceItem(t.id)}>{t.name}<span>{t.count}</span></button>):categoryChoices.map(c=><button key={c} type="button" className={`choice-chip ${choiceDraft.includes(c)?'is-chosen':''}`} aria-pressed={choiceDraft.includes(c)} onClick={()=>toggleChoiceItem(c)}>{c}<span>{choicePool.filter(p=>official(p)?.category===c).length}</span></button>)}
-          {(filter==='My teams'?teamChoices.length:categoryChoices.length)===0&&<p className="choice-empty">No {filter==='My teams'?'teams':'categories'} available yet.</p>}
-        </div>
-        <button type="button" className="choice-apply" disabled={!choiceDraft.length} onClick={applyChoice}>Show selected prompts <ArrowRight size={15}/></button>
-      </section>
     </div>
+    <button type="button" className="explore-choice-card explore-choice-all explore-manual-trigger" aria-haspopup="dialog" aria-expanded={manualSearchOpen} onClick={()=>setManualSearchOpen(true)}>
+      <span className="choice-symbol"><Search size={24} aria-hidden="true"/></span>
+      <strong>Manual search</strong>
+      <small>Search by keywords or refine results using advanced filters.</small>
+    </button>
   </section>:view==='mine'&&mineTrash?<div className="trash-container"><div className="list-top"><h2>Recently deleted</h2></div>{data.prompts.filter(p=>p.deleted_at&&canEdit(p)).map(p=><div className="trash-item" key={p.id}><Trash2 size={18}/><div><strong>{official(p)?.title||'Untitled prompt'}</strong><p>Deleted {when(p.deleted_at||undefined)}</p></div><Button variant="outline" onClick={()=>doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:true}),'Prompt restored.')}><RotateCcw size={15}/> Restore</Button></div>)}{!data.prompts.some(p=>p.deleted_at&&canEdit(p))&&<Empty title="Your trash is empty" description="Deleted prompts will appear here while they can still be restored." icon={Trash2}/>}</div>:<div className="workspace"><div className="prompt-results"><div className="list-top list-top-tools">
     <span className="results-count" role="status">{searchable.length} {searchable.length===1?'result':'results'}</span>
     <div className="prompt-toolbar" role="toolbar" aria-label="Prompt actions">
       <button type="button" className={`prompt-toolbar-button ${advancedOpen?'is-open':''}`} data-tooltip="Filters" aria-label="Filters" aria-haspopup="dialog" aria-expanded={advancedOpen} onClick={()=>{setSearchExpanded(false);setAdvancedOpen(true)}}><SlidersHorizontal size={16}/>{Object.values(facets).filter(Boolean).length+(recommendOnly?1:0)>0&&<span className="active-filter-count">{Object.values(facets).filter(Boolean).length+(recommendOnly?1:0)}</span>}</button>
       <button type="button" className={`prompt-toolbar-button ${searchExpanded?'is-open':''}`} data-tooltip="Keywords search" aria-label="Keywords search" aria-haspopup="dialog" aria-expanded={searchExpanded} onClick={()=>{setAdvancedOpen(false);setSearchExpanded(true)}}><Search size={16}/>{query.trim()&&<span className="search-active-dot" aria-hidden="true"/>}</button>
       {guidedExplore&&exploreChoice!==null&&<button type="button" className="prompt-toolbar-button" data-tooltip="Back to selection" aria-label="Back to selection" onClick={resetDiscovery}><ArrowLeft size={16}/></button>}
-      {view==='explore'&&<button type="button" className={`prompt-toolbar-button ${listified?'is-open':''}`} data-tooltip={listified?'Detailed view':'Listify'} aria-label={listified?'Detailed view':'Listify'} onClick={()=>setListified(v=>!v)} aria-pressed={listified}><List size={16}/></button>}
+      {view==='explore'&&<button type="button" className={`prompt-toolbar-button ${listified?'is-open':''}`} data-tooltip={listified?'Detailed view':'Listify'} aria-label={listified?'Detailed view':'Listify'} onClick={toggleListify} disabled={!!user&&listifyLoadedFor!==user.id} aria-pressed={listified}><List size={16}/></button>}
       <button type="button" className={`prompt-toolbar-button ${bulkExportOpen?'is-open':''}`} data-tooltip={bulkExportOpen?'Cancel bulk selection':'Export multiple prompts'} aria-label={bulkExportOpen?'Cancel bulk selection':'Export multiple prompts'} aria-pressed={bulkExportOpen} onClick={()=>{setBulkExportOpen(x=>!x);setExportIds([])}}><Copy size={16}/></button>
     </div>
   </div>
@@ -476,6 +528,23 @@ export default function App(){
   </main>}
   <footer className="footer"><div className="container"><span>© Promptfolio</span><span className="footer-build-info"><span>v{packageInfo.version}</span><span className="footer-dot">·</span><span>Last updated: {when(__PROMPTFOLIO_BUILD_DATE__)}</span></span></div></footer>
   <input aria-label="Import prompt file" type="file" accept=".json,.md,application/json,text/markdown" ref={importRef} hidden onChange={e=>{void importPrompt(e.target.files?.[0]);e.target.value=''}}/>
+  {manualSearchOpen&&<Modal wide onClose={()=>setManualSearchOpen(false)}>
+    <div className="manual-search-dialog">
+      <div className="modal-header"><div><h2>Manual search</h2><p>Search by keywords or combine filters to find exactly what you need.</p></div><button className="round-icon" type="button" aria-label="Close manual search" onClick={()=>setManualSearchOpen(false)}><X size={19}/></button></div>
+      <form className="manual-search-dialog-form" role="search" aria-label="Manual prompt search" onSubmit={e=>{e.preventDefault();submitManualSearch()}}>
+        <div className="manual-search-dialog-scroll">
+          <label className="manual-search-keyword-label" htmlFor="manualPromptSearch">Keywords</label>
+          <div className="manual-search-keyword-input"><Search size={17} aria-hidden="true"/><input id="manualPromptSearch" autoFocus type="search" placeholder="Search titles, prompt text, tags…" value={query} onChange={e=>{setQuery(e.target.value);setSelectedId(null)}}/></div>
+          <div className="manual-search-divider"><span>Refine your results</span></div>
+          <div className="manual-search-filter-fields">{filterControls}</div>
+        </div>
+        <div className="manual-search-actions">
+          <Button type="button" variant="outline" onClick={clearManualSearch}>Clear</Button>
+          <Button type="submit">Search prompts <ArrowRight size={15}/></Button>
+        </div>
+      </form>
+    </div>
+  </Modal>}
   {searchExpanded&&<Modal onClose={()=>setSearchExpanded(false)}><div className="search-dialog">
     <div className="modal-header"><div><h2>Keywords search</h2><p>Find prompts by title, content, tags, or team.</p></div><button className="round-icon" type="button" aria-label="Close keywords search" onClick={()=>setSearchExpanded(false)}><X size={19}/></button></div>
     <form role="search" className="search-dialog-form" onSubmit={e=>{e.preventDefault();setSearchExpanded(false)}}>
@@ -487,7 +556,7 @@ export default function App(){
   </div></Modal>}
   {advancedOpen&&<Modal wide onClose={()=>setAdvancedOpen(false)}><div className="filters-dialog">
     <div className="modal-header"><div><h2>Filters</h2><p>Refine the prompts shown in your library.</p></div><button className="round-icon" type="button" aria-label="Close filters" onClick={()=>setAdvancedOpen(false)}><X size={19}/></button></div>
-    <div className="filters-dialog-scroll"><div className="advanced-filters"><label>Team<select value={facets.team} onChange={e=>facet('team',e.target.value)}><option value="">Any team</option>{data.teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><label>Owner<select value={facets.owner} onChange={e=>facet('owner',e.target.value)}><option value="">Any owner</option>{data.profiles.map(pr=><option key={pr.id} value={pr.id}>{pr.display_name}</option>)}</select></label><label>Category<select value={facets.category} onChange={e=>facet('category',e.target.value)}><option value="">Any category</option>{categoryNames.map(c=><option key={c}>{c}</option>)}</select></label><label>Tag<select value={facets.tag} onChange={e=>facet('tag',e.target.value)}><option value="">Any tag</option>{[...new Set(data.versions.flatMap(v=>v.tags))].sort().map(t=><option key={t}>{t}</option>)}</select></label><label>Lifecycle<select value={facets.lifecycle} onChange={e=>facet('lifecycle',e.target.value)}><option value="">Any status</option>{['draft','published','archived'].map(v=><option key={v}>{v}</option>)}</select></label><label>Approval<select value={facets.approval} onChange={e=>facet('approval',e.target.value)}><option value="">Any approval</option>{['experimental','under_review','approved','deprecated'].map(v=><option key={v}>{v}</option>)}</select></label><label>Updated after<input type="date" value={facets.updated} onChange={e=>facet('updated',e.target.value)}/></label><label className="check-filter"><input type="checkbox" checked={recommendOnly} onChange={e=>setRecommendOnly(e.target.checked)}/> Manager recommended</label></div></div>
+    <div className="filters-dialog-scroll">{filterControls}</div>
     <div className="filters-dialog-actions"><Button variant="outline" type="button" onClick={()=>{setFacets({team:'',owner:'',category:'',tag:'',lifecycle:'',approval:'',updated:''});setRecommendOnly(false);setSelectedId(null)}}>Clear filters</Button><Button type="button" onClick={()=>setAdvancedOpen(false)}>Show results <ArrowRight size={15}/></Button></div>
   </div></Modal>}
   {editor&&<PromptEditor editor={editor} body={editorBody} teams={ownTeamList} categoryNames={categoryNames} existingTitles={accessible.filter(p=>p.id!==editor.prompt?.id).map(p=>official(p)?.title||'')} onNewCategory={async name=>{await doAction(()=>execute('create_category',{category_name:name}),'Category added.')}} onClose={()=>setEditor(null)} onSubmit={submitEditor} saving={busy}/>}

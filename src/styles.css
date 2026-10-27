@@ -74,7 +74,8 @@
   min-height: 0;
   padding: 46px 0 35px;
 }
-.hero p {
+.hero p,
+.subhero p {
   font-size: 13px;
 }
 .hero h1,
@@ -82,10 +83,10 @@
   font-size: var(--pf-page-title-size);
   line-height: 1.12;
   letter-spacing: -.055em;
-  margin: 0 0 14px;
+  margin: 0 0 9px;
 }
 .subhero {
-  padding: 48px 0 30px;
+  padding: 20px 0 32px;
 }
 .auth-story h1 {
   font-size: var(--pf-welcome-title-size);
@@ -543,10 +544,7 @@
 .choice-chip:hover{border-color:#aab3f5;background:#fafbff}
 .choice-chip.is-chosen{border-color:#7d8beb;background:#eef0ff;color:#4454cb}
 .choice-chip.is-chosen span{color:#6573cf}
-.choice-chip:focus-visible,.choice-apply:focus-visible{outline:3px solid #a5adfa;outline-offset:2px}
-.choice-apply{display:flex;align-items:center;justify-content:center;gap:9px;align-self:flex-start;margin-top:auto;min-height:36px;border:1px solid #252d39;border-radius:9px;background:#252d39;color:#fff;font-size:12px;font-weight:700;padding:9px 13px}
-.choice-apply:hover:not(:disabled){background:#3e4858}
-.choice-apply:disabled{opacity:.45;cursor:not-allowed}
+.choice-chip:focus-visible{outline:3px solid #a5adfa;outline-offset:2px}
 /* Title-only rows preserve selection, keyboard navigation and multi-export controls. */
 .prompt-row.prompt-row-listified,
 .bulk-prompt-row.is-selecting .prompt-row.prompt-row-listified{
@@ -563,7 +561,6 @@
 @media(max-width:580px){
   .choice-chip{font-size:11px;padding:8px 10px}
   .choice-chip-list{gap:7px}
-  .choice-apply{width:100%}
   .prompt-row.prompt-row-listified,.bulk-prompt-row.is-selecting .prompt-row.prompt-row-listified{padding:15px 11px}
 }
 
@@ -599,7 +596,6 @@
 .app-main .explore-choice-select {gap:10px}
 .app-main .choice-chip-list {gap:6px}
 .app-main .choice-chip {padding:7px 10px}
-.app-main .choice-apply {min-height:33px;padding:8px 11px}
 
 /* Title + subtle date; less vertical space than the previous title-only rows. */
 .app-main .prompt-row.prompt-row-listified,
@@ -767,3 +763,72 @@
   .prompt-toolbar { max-width: 100%; }
 }
 
+
+/* Direct category/team navigation: the left chooser opens results on one tap. */
+.app-main .explore-choice-select{justify-content:center}
+
+/* MANUAL SEARCH — centered choice card and scrollable search dialog. */
+:root {
+  --pf-manual-search-width: 850px;
+  --pf-manual-search-gap: 16px;
+  --pf-manual-search-dialog-padding: 25px;
+}
+.app-main .explore-manual-trigger {
+  width: min(var(--pf-manual-search-width), 100%);
+  margin: var(--pf-manual-search-gap) auto 0;
+  cursor: pointer;
+  min-height: 152px;
+  padding: 20px;
+  gap: 8px;
+}
+.app-main .explore-manual-trigger .choice-symbol {width: 43px;height: 43px;}
+.app-main .explore-manual-trigger strong {font-size: 16px;}
+.app-main .explore-manual-trigger small {max-width: 360px;}
+.manual-search-dialog {display: flex;flex-direction: column;max-height: min(92dvh,900px);min-height: 0;}
+.manual-search-dialog .modal-header {flex-shrink: 0;}
+.manual-search-dialog .modal-header h2 {margin: 0 0 6px;}
+.manual-search-dialog-form {display: flex;flex-direction: column;min-height: 0;}
+.manual-search-dialog-scroll {
+  min-height: 0;overflow-y: auto;overscroll-behavior: contain;
+  padding: 22px var(--pf-manual-search-dialog-padding);
+}
+.manual-search-keyword-label {display:block;font-size: 12px;font-weight: 750;color: #545e70;margin-bottom: 9px;}
+.manual-search-keyword-input {
+  display: flex;align-items: center;gap: 10px;
+  min-width: 0;height: 43px;
+  border: 1px solid #e0e5ec;border-radius: 9px;
+  padding: 0 12px;color: #8792a5;
+}
+.manual-search-keyword-input:focus-within {border-color:#a1adff;box-shadow:0 0 0 3px rgba(83,99,239,.09)}
+.manual-search-keyword-input input {
+  flex: 1;height: 100%;min-width: 0;width: 100%;
+  border: none;box-shadow: none!important;
+  padding: 0;background: transparent;color: var(--ink);
+  font-size: 13px;
+}
+.manual-search-keyword-input input::placeholder {color: #a6afbe;}
+.manual-search-divider {height: 17px;display: flex;align-items: center;gap: 11px;margin: 21px 0 8px;}
+.manual-search-divider span {font-size: 11px;font-weight: 750;color: #8792a1;white-space: nowrap;}
+.manual-search-divider::after {content: '';height: 1px;background: #edf0f4;flex: 1;}
+.manual-search-filter-fields .advanced-filters {
+  display: grid;grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 14px 18px;margin: 0;padding: 0;
+  background: transparent;border: 0;border-radius: 0;box-shadow: none;
+}
+.manual-search-filter-fields .advanced-filters label {min-width: 0;}
+.manual-search-filter-fields .advanced-filters .check-filter {align-self: center;margin-top: 15px;}
+.manual-search-actions {
+  display: flex;justify-content: flex-end;align-items: center;gap: 9px;
+  flex-shrink: 0;border-top: 1px solid var(--line);
+  padding: 16px var(--pf-manual-search-dialog-padding);
+}
+@media(max-width:760px) {
+  :root {--pf-manual-search-gap: 12px;--pf-manual-search-dialog-padding: 20px;}
+  .app-main .explore-manual-trigger {min-height: 125px;border-radius: 12px;}
+}
+@media(max-width:580px) {
+  .manual-search-filter-fields .advanced-filters {grid-template-columns: 1fr;gap: 13px;}
+  .manual-search-filter-fields .advanced-filters .check-filter {margin-top: 0;}
+  .manual-search-actions .btn {flex: 1;}
+  .manual-search-dialog .modal-header {padding: 20px;}
+}

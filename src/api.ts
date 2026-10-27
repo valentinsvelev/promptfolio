@@ -287,3 +287,22 @@ export async function loadLikeCounts(): Promise<Record<string,number>> {
   for (const row of data || []) counts[String(row.prompt_id)] = Number(row.likes);
   return counts;
 }
+
+
+/** Per-account display preference. Supabase RLS limits every operation to auth.uid(). */
+export async function loadListifyPreference(userId:string):Promise<boolean>{
+  if(isDemo){try{return localStorage.getItem('promptfolio:demo:listify')==='true';}catch{return false;}}
+  const {data,error}=await client!.from('user_preferences')
+    .select('listified').eq('user_id',userId).maybeSingle();
+  if(error)throw error;
+  return data?.listified===true;
+}
+
+/** Persist the latest Listify choice for the signed-in user across devices. */
+export async function saveListifyPreference(userId:string,enabled:boolean):Promise<void>{
+  if(isDemo){try{localStorage.setItem('promptfolio:demo:listify',String(enabled));}catch{}return;}
+  const {error}=await client!.from('user_preferences')
+    .upsert({user_id:userId,listified:enabled,updated_at:new Date().toISOString()},
+      {onConflict:'user_id'});
+  if(error)throw error;
+}
