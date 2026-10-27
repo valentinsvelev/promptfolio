@@ -238,6 +238,20 @@ export async function accountAdmin(action:string,payload:Record<string,unknown> 
   if(data?.error)throw Error(data.error);
   return data;
 }
+/** Update only the signed-in user's display name (never their role or email). */
+export async function updateDisplayName(name:string):Promise<string>{
+  const clean=name.trim();
+  if(clean.length<2||clean.length>80)throw Error('Name must be between 2 and 80 characters.');
+  if(isDemo){
+    const data=readDemo();const mine=data.profiles.find(p=>p.id===demoIdentity.id);
+    if(!mine)throw Error('Profile not found.');
+    mine.display_name=clean;saveDemo(data);return clean;
+  }
+  const {data,error}=await client!.rpc('update_my_display_name',{new_display_name:clean});
+  if(error)throw error;
+  return String(data||clean);
+}
+
 export async function changePassword(password:string){
   if(isDemo)return;
   const {error}=await client!.auth.updateUser({password});if(error)throw error;
