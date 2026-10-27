@@ -1,9 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 /* HEADLINE SIZES — edit these three values to scale headings throughout Promptfolio. */
 :root {
-  --pf-page-title-size: clamp(28px, 3vw, 40px);  /* Explore, My prompts, Teams, Reviews, Admin */
+  --pf-page-title-size: clamp(20px, 2.5vw, 32px);  /* Explore, My prompts, Teams, Reviews, Admin */
   --pf-welcome-title-size: clamp(38px, 3.5vw, 52px); /* Login / signup welcome */
   --pf-dialog-title-size: 23px;                      /* Create prompt and other dialogs */
+  /* EXPLORE SPACING — change these to adjust the area above the prompt list. */
+  --pf-explore-hero-top: 20px;          /* space above the page title */
+  --pf-explore-hero-bottom: 15px;       /* space below the page subtitle */
+  --pf-explore-title-gap: 9px;          /* title → subtitle */
+  --pf-explore-tab-padding-y: 9px;      /* vertical padding around All prompts / Personal / etc. */
+  --pf-choice-margin-top: 16px;        /* gap between tabs and selection panel */
+  --pf-choice-margin-bottom: 20px;
+  --pf-choice-panel-padding: 28px;     /* padding INSIDE the big selection panel */
+  --pf-choice-card-min-height: 158px;  /* height of the two selection cards */
+  --pf-choice-card-padding: 17px;      /* padding INSIDE each selection card */
+  --pf-choice-item-gap: 11px;          /* gap between the two selection cards */
+  --pf-listify-title-size: 12.5px;     /* title text in Listify mode */
+  --pf-listify-date-size: 10px;        /* Last updated label */
+  --pf-listify-row-padding-y: 6px;     /* vertical padding per Listify row */
 }
 
 
@@ -59,6 +73,9 @@
 .hero {
   min-height: 0;
   padding: 46px 0 35px;
+}
+.hero p {
+  font-size: 13px;
 }
 .hero h1,
 .subhero h1 {
@@ -194,6 +211,17 @@
   position: sticky;
   top: 0;
   z-index: 30;
+  height: 64px;
+}
+
+.topbar .brand {
+  font-size: 18px;
+}
+
+.topbar .brand-mark {
+  width: 20px;
+  height: 21px;
+  gap: 2px;
 }
 
 /* The login/create-account form is now the only authentication panel. */
@@ -538,3 +566,204 @@
   .choice-apply{width:100%}
   .prompt-row.prompt-row-listified,.bulk-prompt-row.is-selecting .prompt-row.prompt-row-listified{padding:15px 11px}
 }
+
+
+/* COMPACT EXPLORE / LISTIFY — adjustable values are at the top of this file.
+   These overrides intentionally affect Explore and My prompts, not admin, teams or dialogs. */
+.app-main .hero {
+  min-height: 0;
+  padding: var(--pf-explore-hero-top) 0 var(--pf-explore-hero-bottom);
+}
+.app-main .hero h1 {
+  margin-bottom: var(--pf-explore-title-gap);
+}
+.app-main .filters-bar {
+  padding-top: var(--pf-explore-tab-padding-y);
+  padding-bottom: var(--pf-explore-tab-padding-y);
+}
+.app-main .explore-choice-screen {
+  margin: var(--pf-choice-margin-top) 0 var(--pf-choice-margin-bottom);
+  padding: var(--pf-choice-panel-padding);
+}
+.app-main .explore-choice-screen h2 {font-size:clamp(19px,2vw,24px)}
+.app-main .explore-choice-screen > p {margin-top:5px;margin-bottom:15px}
+.app-main .explore-choice-actions {gap:var(--pf-choice-item-gap)}
+.app-main .explore-choice-card {
+  min-height:var(--pf-choice-card-min-height);
+  padding:var(--pf-choice-card-padding);
+}
+.app-main .explore-choice-all {gap:9px}
+.app-main .explore-choice-all .choice-symbol {width:39px;height:39px}
+.app-main .explore-choice-all .choice-symbol svg {width:20px;height:20px}
+.app-main .explore-choice-all strong {font-size:15px}
+.app-main .explore-choice-select {gap:10px}
+.app-main .choice-chip-list {gap:6px}
+.app-main .choice-chip {padding:7px 10px}
+.app-main .choice-apply {min-height:33px;padding:8px 11px}
+
+/* Title + subtle date; less vertical space than the previous title-only rows. */
+.app-main .prompt-row.prompt-row-listified,
+.app-main .bulk-prompt-row.is-selecting .prompt-row.prompt-row-listified {
+  min-height:0;
+  padding:var(--pf-listify-row-padding-y) 14px;
+}
+.app-main .row-listify-body {display:flex;flex-direction:column;align-items:flex-start;min-width:0;gap:3px}
+.app-main .prompt-row-listified .row-title {
+  font-size:var(--pf-listify-title-size);
+  line-height:1.3;
+}
+.app-main .row-listify-updated {
+  font-size:var(--pf-listify-date-size);
+  color:#98a2b2;
+  line-height:1.35;
+  font-weight:500;
+}
+@media(max-width:760px){
+  :root {
+    --pf-explore-hero-top:20px;
+    --pf-explore-hero-bottom:16px;
+    --pf-choice-margin-top:12px;
+    --pf-choice-margin-bottom:16px;
+    --pf-choice-panel-padding:17px;
+    --pf-choice-card-min-height:0px;
+    --pf-choice-card-padding:15px;
+  }
+}
+
+
+/* RESULT TOOLBAR — v0.3.0. Change these variables to customise the icon actions. */
+:root {
+  --pf-result-toolbar-icon-size: 36px;
+  --pf-result-toolbar-gap: 7px;
+  --pf-result-toolbar-tooltip-delay: .35s;
+}
+
+/* One compact row: result count left, icon-only actions right. */
+.prompt-results .list-top-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  height: auto;
+  min-height: 38px;
+  margin-bottom: 9px;
+}
+.prompt-results .results-count {
+  display: inline-block;
+  color: #8f99aa;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.prompt-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--pf-result-toolbar-gap);
+  margin-left: auto;
+}
+.prompt-toolbar-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--pf-result-toolbar-icon-size);
+  height: var(--pf-result-toolbar-icon-size);
+  padding: 0;
+  border: 1px solid #e1e6ee;
+  border-radius: 9px;
+  background: #fff;
+  color: #647083;
+  transition: border-color .15s, background-color .15s, color .15s;
+}
+.prompt-toolbar-button:hover,
+.prompt-toolbar-button.is-open {
+  border-color: #cdd4f8;
+  background: #f3f5ff;
+  color: #4e5ecb;
+}
+.prompt-toolbar-button[aria-pressed="true"] {
+  border-color: #bfc8fa;
+  background: #f2f4ff;
+  color: #4657cd;
+}
+/* Hover tooltips are delayed; keyboard focus reveals them immediately. */
+.prompt-toolbar-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  z-index: 35;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translate(-50%, 3px);
+  width: max-content;
+  max-width: min(230px, 80vw);
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #232a35;
+  box-shadow: 0 5px 18px rgb(25 32 49 / .13);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .12s ease, transform .12s ease, visibility 0s linear .12s;
+}
+@media (hover: hover) {
+  .prompt-toolbar-button:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+    transition: opacity .12s ease var(--pf-result-toolbar-tooltip-delay),
+                transform .12s ease var(--pf-result-toolbar-tooltip-delay),
+                visibility 0s linear var(--pf-result-toolbar-tooltip-delay);
+  }
+}
+.prompt-toolbar-button:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+  transition-delay: 0s;
+}
+.prompt-toolbar-button .active-filter-count {
+  position: absolute;
+  right: -5px;
+  top: -6px;
+  border: 1px solid #fff;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  line-height: 15px;
+  font-size: 9px;
+}
+.prompt-toolbar-button .search-active-dot {
+  position: absolute;
+  right: 3px;
+  top: 4px;
+}
+.active-filters-standalone {
+  margin: 9px 0 -3px;
+  padding: 0;
+}
+/* Tighter layout on phones, without overlapping the count or controls. */
+@media (max-width: 760px) {
+  :root {
+    --pf-result-toolbar-icon-size: 34px;
+    --pf-result-toolbar-gap: 6px;
+  }
+  .prompt-results .list-top-tools {
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .prompt-toolbar { justify-content: flex-end; }
+}
+@media (max-width: 420px) {
+  .prompt-results .list-top-tools { align-items: flex-start; }
+  .prompt-toolbar { max-width: 100%; }
+}
+

@@ -1,40 +1,64 @@
-name: Deploy Promptfolio to GitHub Pages
+name: Promptfolio CI/CD
+
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   workflow_dispatch:
+
+# Read-only by default. Only deployment needs elevated permissions.
 permissions:
   contents: read
-  pages: write
-  id-token: write
+
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
+    name: Test, typecheck and build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: Demo smoke tests
-        run: npm run test:demo
-      - name: UX contract checks
-        run: npm run test:ux
-      - name: Build app
-        run: npm run build
+        run: npm ci --no-audit --no-fund
+
+      - name: Run tests, TypeScript checks and production build
+        run: npm run verify
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Upload built site for deployment
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-      - id: deployment
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy site
+        id: deployment
         uses: actions/deploy-pages@v4
