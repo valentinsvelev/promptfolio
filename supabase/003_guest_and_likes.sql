@@ -1,7 +1,3 @@
--- Promptfolio UX: aggregate saved counts as likes without leaking personal favorites.
--- Run after 001_schema.sql and 002_phase1_completion.sql.
--- Guest sessions intentionally receive NO database permissions. The frontend
--- shows a fixed sample catalogue, preserving Phase 1's membership isolation.
 create or replace function public.prompt_like_counts()
 returns table(prompt_id uuid, likes bigint)
 language sql stable security definer set search_path = ''

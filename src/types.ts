@@ -51,15 +51,7 @@ export type Proposal = {
   created_at: string;
   decision_reason?: string;
 };
-// export type Notice = { id: string; recipient_id: string; message: string; read_at: string | null; created_at: string };
-export type Notice = {
-  id: string;
-  recipient_id: string;
-  message: string;
-  prompt_id: string | null;
-  read_at: string | null;
-  created_at: string;
-};
+export type Notice = { id: string; recipient_id: string; message: string; prompt_id?: string | null; read_at: string | null; created_at: string };
 export type Audit = { id: number; actor_id: string; team_id: string | null; prompt_id: string | null; event_type: string; description: string; created_at: string };
 export type AppData = {
   prompts: Prompt[];

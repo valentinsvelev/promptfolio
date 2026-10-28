@@ -92,6 +92,7 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     const no = 1 + Math.max(0, ...d.versions.filter(v=>v.prompt_id===promptId).map(v=>v.version_number));
     const v:PromptVersion = {id:uuid(),prompt_id:promptId,version_number:no,...body,approval_status:status,decision:'',decision_reason:'',change_note:note,author_id:currentId,created_at:now()};
     d.versions.push(v);
+    if(!d.categories.some(c=>c.name.toLowerCase()===body.category.toLowerCase()))d.categories.push({name:body.category});
     return v;
   };
   let result: unknown = null;
@@ -129,7 +130,10 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     const prompt=p(args.pid);
     if(!prompt || !prompt.owner_team_id || prompt.deleted_at || prompt.lifecycle==='archived' || (!member(prompt.owner_team_id) && (prompt.lifecycle!=='published' || !d.members.some(m=>m.user_id===currentId)))) throw Error('You need access to this team prompt to suggest a change.');
     const proposal:Proposal={id:uuid(),prompt_id:prompt.id,author_id:currentId,proposed_content:args.payload as PromptBody,rationale:String(args.explanation||''),status:'open',created_at:now()};
-    d.proposals.push(proposal);result=proposal.id;
+    d.proposals.push(proposal);
+    const proposedCategory=(args.payload as PromptBody).category;
+    if(proposedCategory&&!d.categories.some(c=>c.name.toLowerCase()===proposedCategory.toLowerCase()))d.categories.push({name:proposedCategory});
+    result=proposal.id;
   } else if(name==='review_improvement_proposal') {
     const proposal=d.proposals.find(p=>p.id===args.proposal_id);
     const prompt=proposal&&p(proposal.prompt_id);
@@ -144,13 +148,24 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     if(teamId && !member(teamId)) throw Error('Not a member of this team.');
     const copy: Prompt = {id:uuid(),owner_user_id:teamId?null:currentId,owner_team_id:teamId||null,created_by:currentId,lifecycle:name==='share_personal_prompt'?'published':'draft',official_version_id:null,latest_version_id:null,source_prompt_id:prompt.id,created_at:now(),updated_at:now(),deleted_at:null};
     d.prompts.push(copy);
-    const v=addVersion(copy.id,{title:source.title,description:source.description,content:source.content,category:source.category,tags:source.tags,usage_instructions:source.usage_instructions,example_inputs:source.example_inputs,expected_outputs:source.expected_outputs,compatible_models:source.compatible_models},'experimental','Copied from another prompt');
+    const v=addVersion(copy.id,{title:teamId?source.title:`${source.title.slice(0,143)} - copy`,description:source.description,content:source.content,category:source.category,tags:source.tags,usage_instructions:source.usage_instructions,example_inputs:source.example_inputs,expected_outputs:source.expected_outputs,compatible_models:source.compatible_models},'experimental','Copied from another prompt');
     copy.official_version_id=copy.latest_version_id=v.id;
     result=copy.id;
   } else if(name==='set_prompt_lifecycle') {
     const prompt=p(args.pid);
     if(!canEdit(prompt)) throw Error('Permission denied.');
     prompt!.lifecycle=args.new_status as Prompt['lifecycle'];
+  } else if(name==='permanently_delete_prompt') {
+    const prompt=p(args.pid);
+    if(!prompt || !prompt.deleted_at)throw Error('Only prompts already in Trash can be permanently deleted.');
+    if(!(prompt.owner_user_id===currentId || (prompt.owner_team_id && (manager(prompt.owner_team_id)||d.admins.some(a=>a.user_id===currentId)))))throw Error('Only the owner or a team manager may permanently delete this prompt.');
+    d.prompts=d.prompts.filter(item=>item.id!==prompt.id).map(item=>item.source_prompt_id===prompt.id?{...item,source_prompt_id:null}:item);
+    d.versions=d.versions.filter(v=>v.prompt_id!==prompt.id);
+    d.favorites=d.favorites.filter(f=>f.prompt_id!==prompt.id);
+    d.proposals=d.proposals.filter(pr=>pr.prompt_id!==prompt.id);
+    d.recommendations=d.recommendations.filter(r=>r.prompt_id!==prompt.id);
+    d.notifications=d.notifications.map(n=>n.prompt_id===prompt.id?{...n,prompt_id:null}:n);
+    d.audit=d.audit.map(a=>a.prompt_id===prompt.id?{...a,prompt_id:null}:a);
   } else if(name==='soft_delete_prompt') {
     const prompt=p(args.pid);
     if(!canEdit(prompt)) throw Error('Permission denied.');
@@ -159,6 +174,16 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     const nameValue=String(args.category_name||'').trim();
     if(nameValue.length<2) throw Error('Category must be at least 2 characters.');
     if(!d.categories.some(c=>c.name.toLowerCase()===nameValue.toLowerCase()))d.categories.push({name:nameValue});
+  } else if(name==='rename_category') {
+    if(!d.admins.some(a=>a.user_id===currentId))throw Error('Administrator required.');
+    const oldName=String(args.old_name||'').trim(),newName=String(args.new_name||'').trim();
+    if(newName.length<2||newName.length>70)throw Error('Category name must be 2–70 characters.');
+    if(!d.categories.some(c=>c.name===oldName))throw Error('Category not found.');
+    if(d.categories.some(c=>c.name!==oldName&&c.name.toLowerCase()===newName.toLowerCase()))throw Error('Category already exists.');
+    d.categories=d.categories.map(c=>c.name===oldName?{...c,name:newName}:c);
+    d.versions=d.versions.map(v=>v.category===oldName?{...v,category:newName}:v);
+    d.proposals=d.proposals.map(pr=>pr.proposed_content.category===oldName?{...pr,proposed_content:{...pr.proposed_content,category:newName}}:pr);
+    result=newName;
   } else if(name==='mark_notification_read') {
     d.notifications=d.notifications.map(n=>n.recipient_id===currentId&&(!args.nid||args.nid===n.id)?{...n,read_at:now()}:n);
   } else if(name==='set_proposal_under_review') {

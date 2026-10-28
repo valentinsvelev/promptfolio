@@ -1,8 +1,3 @@
--- Promptfolio: suggestions-only edits for existing team-owned prompts.
--- Run AFTER migrations 001..004. Applies to both team members and cross-team viewers.
--- Personal prompts remain directly editable by their owner.
--- Existing proposed versions remain available for managers to review.
-
 create or replace function public.save_prompt_version(pid uuid, payload jsonb, note text default '')
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare p public.prompts%rowtype; vid uuid; approved boolean; pending boolean;

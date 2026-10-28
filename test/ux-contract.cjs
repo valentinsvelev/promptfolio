@@ -28,5 +28,24 @@ assert.match(app,/canSuggest=\{!guest&&canSuggest\(selected\)\}/);
 assert.match(app,/Last updated by:/);
 assert.match(app,/Prompts by category/);
 assert.match(css,/\.admin-extras>\.admin-card>form/);
-console.log('PASS: new UX source, guest isolation, mandatory-field display, filters, unselected preview, likes policy');
+assert.match(app,/Create a new category/);
+assert.doesNotMatch(app,/editor-create-category/);
+assert.match(app,/onCopy=\{/);
+assert.match(app,/view==='mine'&&\!mineTrash/);
+assert.match(app,/function AdminCategories/);
+assert.match(app,/detail-version-toolbar/);
+// Compact category editor, aligned bulk text, safe permanent deletion and editor order.
+assert.match(app,/className="admin-category-simple-form"/);
+assert.match(app,/Select a category to rename/);
+assert.match(app,/function askPermanentlyDelete/);
+assert.match(app,/Delete permanently/);
+assert.match(app,/permanently_delete_prompt/);
+assert.match(css,/bulk-prompt-row\.is-selecting \.prompt-row-listified \.row-listify-body/);
+assert.ok(app.indexOf('Prompt text <strong') < app.indexOf('Short description</span>'),'Description should follow prompt text');
+assert.ok(app.indexOf('Export Markdown</button>') < app.indexOf('Duplicate</button>'),'Duplicate should follow Markdown export');
+const hardDeleteSQL=fs.readFileSync('supabase/009_permanent_prompt_deletion.sql','utf8');
+assert.match(hardDeleteSQL,/p\.deleted_at is null/);
+assert.match(hardDeleteSQL,/private\.is_manager/);
+assert.match(hardDeleteSQL,/revoke all on function public\.permanently_delete_prompt/);
+console.log('PASS: UX, admin category editor, bulk alignment and hard-delete controls');
 

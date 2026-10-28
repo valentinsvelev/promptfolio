@@ -1,6 +1,3 @@
--- Promptfolio Phase 1 completion. Run AFTER 001_schema.sql on an existing project.
--- This migration is additive except for replacing a few protected RPCs/RLS policies.
-
 create table if not exists public.app_settings (
   id boolean primary key default true check(id),
   retention_days int not null default 30 check(retention_days between 1 and 365),

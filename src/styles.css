@@ -3,7 +3,7 @@
 :root {
   --pf-page-title-size: clamp(20px, 2.5vw, 32px);  /* Explore, My prompts, Teams, Reviews, Admin */
   --pf-welcome-title-size: clamp(38px, 3.5vw, 52px); /* Login / signup welcome */
-  --pf-dialog-title-size: 23px;                      /* Create prompt and other dialogs */
+  --pf-dialog-title-size: 22px;                      /* Create prompt and other dialogs */
   /* EXPLORE SPACING — change these to adjust the area above the prompt list. */
   --pf-explore-hero-top: 20px;          /* space above the page title */
   --pf-explore-hero-bottom: 15px;       /* space below the page subtitle */
@@ -97,7 +97,7 @@
 .modal-header h2 {
   font-size: var(--pf-dialog-title-size);
   line-height: 1.25;
-  margin: 0 0 10px;
+  margin: 0 0 0;
 }
 @media (max-width: 760px) {
   .hero { padding: 38px 0 29px; }
@@ -631,7 +631,7 @@
 :root {
   --pf-result-toolbar-icon-size: 36px;
   --pf-result-toolbar-gap: 7px;
-  --pf-result-toolbar-tooltip-delay: .35s;
+  --pf-result-toolbar-tooltip-delay: .2s;
 }
 
 /* One compact row: result count left, icon-only actions right. */
@@ -831,4 +831,180 @@
   .manual-search-filter-fields .advanced-filters .check-filter {margin-top: 0;}
   .manual-search-actions .btn {flex: 1;}
   .manual-search-dialog .modal-header {padding: 20px;}
+}
+
+
+/* PROMPT ROW COPY ACTION — separate click target, including Listify mode */
+.prompt-row-shell{position:relative;border-bottom:1px solid #e9ebf0;min-width:0}
+.prompt-row-shell>.prompt-row{border-bottom:0;padding-right:58px}
+.row-copy-button{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:31px;height:31px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:8px;background:transparent;color:#929baa;transition:background .15s,border-color .15s,color .15s}
+.row-copy-button:hover,.row-copy-button:focus-visible{background:#fff;border-color:#e2e5ed;color:#4955cd}
+.row-copy-button:active{transform:translateY(calc(-50% + 1px));box-shadow:inset 0 1px 3px #cbd1e455}
+.prompt-row-shell-listified>.prompt-row{padding-right:54px}
+
+/* SIMPLIFIED PROMPT DETAIL — version actions beside date */
+.detail-header-minimal{display:none}
+.detail-version-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0 18px}
+.detail-version-meta{font-size:11px;font-weight:750;color:#778294;white-space:nowrap}
+.detail-version-meta .meta-bullet{margin:0 3px}
+.detail-icon-actions{display:flex;align-items:center;gap:6px}
+.detail-icon-actions button{display:flex;align-items:center;justify-content:center;width:32px;height:32px;color:#687488;background:#fff;border:1px solid #e3e7ef;border-radius:8px;transition:background .15s,color .15s,border-color .15s,transform .15s,box-shadow .15s}
+.detail-icon-actions button:hover{background:#f5f6ff;border-color:#b9c2f7;color:#5363ef;transform:translateY(-1px)}
+.detail-icon-actions button:active{transform:translateY(1px);box-shadow:inset 0 2px 4px #29334518}
+.detail-icon-actions button.saved{color:#5664d9;background:#f2f3ff;border-color:#dadefb}
+.author-line-before-history{margin:24px 0 10px;flex-wrap:wrap}
+.detail-utilities{gap:7px;margin-top:24px;align-items:center}
+.detail-utilities button{font-size:11px;padding:8px 10px;min-height:30px;gap:6px;border:1px solid #e1e5ed;border-radius:8px;background:#fff;color:#637084;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,color .15s,transform .12s,box-shadow .12s}
+.detail-utilities button:hover{background:#f7f8fc;border-color:#bfc7d7;color:#3c4759;transform:translateY(-1px)}
+.detail-utilities button:active{transform:translateY(1px);box-shadow:inset 0 2px 4px #28324620}
+.detail-utilities button.danger-text{color:#b45d65;border-color:#f1dce0}
+.detail-utilities button.danger-text:hover{background:#fff7f8;border-color:#e8bac2}
+@media(max-width:760px){.detail-header-minimal{display:flex;height:52px;min-height:52px;border-bottom:1px solid var(--line)}.detail-header-minimal .mobile-back{display:inline-flex}}
+
+/* ADMIN CATEGORY RENAME */
+.admin-category-management{margin:20px 0 28px}
+.admin-category-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;margin-top:20px}
+.admin-category-row{display:flex;gap:10px;align-items:end;min-width:0}
+.admin-category-row>.field{min-width:0;flex:1}
+.admin-category-row .btn{flex-shrink:0;margin-bottom:0;min-height:40px}
+@media(max-width:780px){.admin-category-list{grid-template-columns:1fr}}
+@media(max-width:420px){.admin-category-row{align-items:stretch;flex-direction:column}.admin-category-row .btn{align-self:flex-start}}
+
+
+/* LAYOUT FIX: each prompt row must fill its list column, including Listify and bulk selection.
+   The copy action is placed against the right edge, independent of title length. */
+.app-main .rows > .bulk-prompt-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+}
+.app-main .bulk-prompt-row > .prompt-row-shell {
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 0;
+}
+.app-main .prompt-row-shell > .prompt-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  padding-right: 56px;
+}
+/* Detailed mode retains its icon / content / chevron grid. */
+.app-main .prompt-row-shell > .prompt-row:not(.prompt-row-listified) {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 17px;
+  align-items: start;
+}
+.app-main .row-copy-button {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+@media (max-width: 760px) {
+  .app-main .prompt-row-shell > .prompt-row:not(.prompt-row-listified) {
+    grid-template-columns: 43px minmax(0, 1fr) 12px;
+  }
+}
+
+/* LAYOUT FIX: generic .admin-card form rules must not override category rename rows. */
+.admin-category-management .admin-category-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.admin-category-management form.admin-category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+}
+.admin-category-management form.admin-category-row > .field {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.admin-category-management form.admin-category-row .btn {
+  align-self: end;
+  justify-self: end;
+  margin: 0;
+  min-height: 41px;
+}
+@media (max-width: 980px) {
+  .admin-category-management .admin-category-list {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 470px) {
+  .admin-category-management form.admin-category-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-category-management form.admin-category-row .btn {
+    justify-self: start;
+  }
+}
+
+/* 009 — Bulk export keeps prompt text left aligned and copy button right aligned. */
+.app-main .bulk-prompt-row.is-selecting {display:grid;grid-template-columns:44px minmax(0,1fr);align-items:stretch;width:100%}
+.app-main .bulk-prompt-row.is-selecting .bulk-prompt-checkbox{grid-column:1;justify-content:flex-start;padding-left:11px;padding-right:4px}
+.app-main .bulk-prompt-row.is-selecting .prompt-row-shell{grid-column:2;width:100%;min-width:0;flex:auto}
+.app-main .bulk-prompt-row.is-selecting .prompt-row-shell > .prompt-row{width:100%;align-items:flex-start;text-align:left;justify-content:center;min-width:0}
+.app-main .bulk-prompt-row.is-selecting .prompt-row-listified .row-listify-body{margin:0;text-align:left;align-items:flex-start;width:100%}
+.app-main .bulk-prompt-row.is-selecting .prompt-row-listified .row-title,
+.app-main .bulk-prompt-row.is-selecting .prompt-row-listified .row-listify-updated{text-align:left}
+@media(max-width:760px){
+  .app-main .bulk-prompt-row.is-selecting{grid-template-columns:32px minmax(0,1fr)}
+  .app-main .bulk-prompt-row.is-selecting .bulk-prompt-checkbox{padding-left:4px;padding-right:2px}
+}
+/* Single-select category editor (overrides generic admin form styles). */
+.admin-category-management form.admin-category-simple-form{display:flex;flex-direction:column;align-items:flex-start;max-width:440px;gap:15px;margin-top:20px}
+.admin-category-simple-form .field{width:100%;min-width:0}
+.admin-category-management .admin-category-simple-form .btn{margin:0;align-self:flex-start}
+/* Distinct secondary destructive action in the Trash view. */
+.trash-item-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;flex-shrink:0}
+.trash-item-actions .trash-delete-forever{color:#b44b55;border-color:#e9cbd0}
+.trash-item-actions .trash-delete-forever:hover{color:#a73745;background:#fff5f6;border-color:#e1a8b1}
+@media(max-width:650px){.trash-item{flex-wrap:wrap}.trash-item-actions{width:100%;justify-content:flex-start;padding-left:30px}}
+
+/* Prompt editor: keep title and category on the same baseline.
+   When Create a new category is selected, reuse the dropdown's space for typing. */
+.editor-primary-fields{align-items:start}
+.editor-primary-fields>.field{min-width:0}
+.editor-primary-fields .field-label{min-height:21px;display:inline-flex;align-items:center;line-height:21px}
+.category-picker-control{position:relative;min-width:0}
+.category-picker-control>select,.category-picker-control>input{width:100%;height:44px;min-height:44px;margin:0}
+.category-picker-control>input{padding-right:44px}
+.category-picker-switch{position:absolute;top:0;right:0;bottom:0;width:40px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:#8994a4;border-radius:0 9px 9px 0}
+.category-picker-switch:hover{color:#434e61;background:#f2f4f8}
+.category-picker-switch:focus-visible{outline:2px solid #a5adfa;outline-offset:-3px}
+.editor-primary-fields>.field>input{height:44px;min-height:44px}
+
+/* Prompt detail section headings: align with existing small grey section labels. */
+.detail-information-heading {
+  margin: 24px 0 10px;
+}
+.author-line-before-history {
+  margin: 0 0 10px;
+}
+.detail-utilities-heading {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin: 24px 0 10px;
+}
+.detail-utilities {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
 }

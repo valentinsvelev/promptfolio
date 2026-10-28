@@ -1,6 +1,4 @@
--- Promptfolio: let authenticated users change their own display name.
--- Run once in Supabase SQL Editor, AFTER existing migrations 001–005.
--- Keeps email, roles, and team membership unchanged.
+-- Let authenticated users change their own display name.
 create or replace function public.update_my_display_name(new_display_name text)
 returns text
 language plpgsql

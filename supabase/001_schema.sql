@@ -1,7 +1,3 @@
--- Promptfolio | Supabase schema and access control | v1.5 POC
--- Run ONCE in Supabase SQL Editor, in a new project. Do not run on an existing
--- database without reviewing names and migration consequences.
--- All browser operations use an authenticated Supabase user + publishable key.
 create extension if not exists pgcrypto;
 create schema if not exists private;
 revoke all on schema private from public;
@@ -520,8 +516,3 @@ grant execute on function public.create_prompt(jsonb,uuid,boolean),
  public.create_team(text,text,uuid),public.manage_team_member(uuid,uuid,text),
  public.set_team_manager(uuid,uuid,boolean),
  public.share_personal_prompt(uuid,uuid) to authenticated;
-
--- FIRST ADMIN (manual, after user signs up and confirms email):
--- insert into public.app_admins(user_id)
--- select id from public.profiles where email = 'you@example.com';
--- Do not grant application admin from the browser or user metadata.

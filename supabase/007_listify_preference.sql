@@ -1,7 +1,4 @@
--- Promptfolio migration 007: store each user's Listify preference in Supabase.
--- Run once after 006_account_settings.sql in Supabase SQL Editor.
--- The public Data API may access this table, but RLS limits it to the owner.
-
+-- Store each user's Listify preference in Supabase.
 create table if not exists public.user_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   listified boolean not null default false,

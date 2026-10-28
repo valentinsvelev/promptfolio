@@ -1,11 +1,3 @@
--- Promptfolio: invite-only signup with exact email allowlisting.
--- Run AFTER 001, 002 and 003 in the Supabase SQL Editor.
--- IMPORTANT: Run the verification and activation steps in SIGNUP_ALLOWLIST_SETUP.md.
--- This migration alone DOES NOT activate the hook in your hosted project.
--- The list starts empty: by default, all new account creation is denied once
--- the Before User Created hook is enabled. Existing users can still sign in.
-
--- Store approved email addresses OUTSIDE the public Data API schema.
 create schema if not exists promptfolio_security;
 revoke all on schema promptfolio_security from public, anon, authenticated;
 
@@ -65,10 +57,3 @@ revoke execute on function public.promptfolio_before_user_created(jsonb)
 grant usage on schema public to supabase_auth_admin;
 grant execute on function public.promptfolio_before_user_created(jsonb)
   to supabase_auth_admin;
-
--- Do not insert actual email addresses in this migration or a public GitHub
--- repository. Add/remove entries privately in Supabase SQL Editor instead.
--- Example (replace with an email you have verified and want to approve):
--- insert into promptfolio_security.allowed_signup_emails(email, note)
--- values (lower(btrim('approved@example.com')), 'Pilot tester')
--- on conflict (email) do nothing;
