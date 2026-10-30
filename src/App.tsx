@@ -396,16 +396,17 @@ export default function App(){
     : view==='explore' && (filter==='All prompts' || filter==='Personal') ? 'category' : null;
   const quickFilterBase = filter==='Personal' ? accessible.filter(p=>p.owner_user_id===user?.id)
     : filter==='My teams' ? accessible.filter(p=>isMember(p.owner_team_id)) : accessible;
-  // Keep every permitted choice available: empty teams and configured categories
-  // should not disappear merely because they have no prompts yet.
+  // Show only quick-filter choices backed by an accessible prompt in this tab.
+  // The options are derived before applying search/facets, so selecting a chip
+  // never makes the other populated choices disappear.
   const quickFilterOptions = quickFilterType==='team'
-    ? ownTeamList.map(t=>({value:t.id,label:t.name}))
+    ? ownTeamList.filter(t=>quickFilterBase.some(p=>p.owner_team_id===t.id))
+        .map(t=>({value:t.id,label:t.name}))
         .sort((a,b)=>a.label.localeCompare(b.label))
     : quickFilterType==='category'
-      ? [...new Set([
-          ...data.categories.map(c=>c.name),
-          ...quickFilterBase.map(p=>official(p)?.category).filter((v):v is string=>!!v),
-        ])].filter(Boolean).sort((a,b)=>a.localeCompare(b)).map(value=>({value,label:value}))
+      ? [...new Set(quickFilterBase.map(p=>official(p)?.category)
+          .filter((v):v is string=>!!v))]
+          .sort((a,b)=>a.localeCompare(b)).map(value=>({value,label:value}))
       : [];
   const selected=selectedId?searchable.find(p=>p.id===selectedId)||null:null;
   const selectedVersion=selected?official(selected):undefined;

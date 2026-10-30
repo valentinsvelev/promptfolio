@@ -631,7 +631,7 @@
 :root {
   --pf-result-toolbar-icon-size: 36px;
   --pf-result-toolbar-gap: 7px;
-  --pf-result-toolbar-tooltip-delay: .2s;
+  --pf-result-toolbar-tooltip-delay: .15s;
 }
 
 /* One compact row: result count left, icon-only actions right. */
@@ -1406,3 +1406,8 @@ html[data-theme='dark'] .team-icon { background-color: #303a5d; color: #c1caff; 
 html[data-theme='dark'] .quote-icon { background-color: #303a5d; color: #c1caff; }
 html[data-theme='dark'] .demo-entry { background-color: #303a5d; color: #dce2ff; }
 html[data-theme='dark'] .demo-entry:hover { background-color: #3d4974; }
+
+html[data-theme='dark'] .brand-mark i:nth-child(1),
+html[data-theme='dark'] .brand-mark i:nth-child(3) {
+  background: #fff;
+}

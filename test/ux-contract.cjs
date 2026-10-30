@@ -67,10 +67,11 @@ assert.match(app,/onClick=\{\(\)=>facet\(quickFilterType,selectedValue\?'':optio
 assert.match(css,/\.prompt-quick-filters\s*\{/);
 assert.match(css,/html\[data-theme='dark'\] \.prompt-quick-filter/);
 
-// All configured categories and all of the user's teams are selectable,
-// including choices with no prompts. Long chip sets wrap instead of scrolling.
-assert.match(app,/ownTeamList\.map\(t=>\(\{value:t\.id,label:t\.name\}\)\)/);
-assert.match(app,/data\.categories\.map\(c=>c\.name\)/);
+// Quick-select chips must represent categories/teams with visible prompts.
+// Do not show an empty team or an unused configured category.
+assert.match(app,/ownTeamList\.filter\(t=>quickFilterBase\.some\(p=>p\.owner_team_id===t\.id\)\)/);
+assert.match(app,/quickFilterBase\.map\(p=>official\(p\)\?\.category\)/);
+assert.doesNotMatch(app,/\.\.\.data\.categories\.map\(c=>c\.name\)/);
 assert.match(css,/\.prompt-quick-filters\s*\{[^}]*flex-wrap: wrap/s);
 assert.match(css,/\.prompt-quick-filters\s*\{[^}]*overflow: visible/s);
 assert.doesNotMatch(css,/\.prompt-quick-filters\s*\{[^}]*overflow-x:\s*auto/s);
