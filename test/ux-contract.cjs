@@ -9,7 +9,7 @@ for(const [name,text,opts] of [['App.tsx',app,{jsx:ts.JsxEmit.ReactJSX}],['api.t
 assert.match(app,/\[guest,setGuest\]/);assert.match(app,/guestSampleData\(\)/);
 assert.match(app,/const selected=selectedId\?searchable\.find/);
 assert.doesNotMatch(app,/\|\|searchable\[0\]/);
-assert.match(app,/className=\"active-filter-chip\"/);
+assert.doesNotMatch(app,/className=\"active-filter-chip\"/);
 assert.match(app,/className="results-count"/);
 assert.doesNotMatch(app,/className="results-in-heading"/);
 assert.match(app,/className="prompt-toolbar"/);
@@ -47,5 +47,32 @@ const hardDeleteSQL=fs.readFileSync('supabase/009_permanent_prompt_deletion.sql'
 assert.match(hardDeleteSQL,/p\.deleted_at is null/);
 assert.match(hardDeleteSQL,/private\.is_manager/);
 assert.match(hardDeleteSQL,/revoke all on function public\.permanently_delete_prompt/);
+assert.match(app,/RenameTeamDialog/);
+assert.match(app,/execute\('rename_team'/);
+assert.match(app,/onRenameTeam/);
+assert.match(css,/html\[data-theme='dark'\]/);
 console.log('PASS: UX, admin category editor, bulk alignment and hard-delete controls');
 
+// Explore quick filters use the same state as the advanced Filters pop-up.
+assert.match(app,/filter==='My teams' \? 'team'/);
+assert.match(app,/filter==='All prompts' \|\| filter==='Personal'/);
+assert.match(app,/className="prompt-quick-filters"/);
+// The quick chips precede the Filters button, and no selected-filter bubbles appear above results.
+const quickChipsPosition=app.indexOf('className="prompt-quick-filters"');
+const filterButtonPosition=app.indexOf('data-tooltip="Filters"',quickChipsPosition);
+assert.ok(quickChipsPosition>=0&&filterButtonPosition>quickChipsPosition);
+assert.doesNotMatch(app,/active-filters-standalone/);
+assert.match(app,/aria-pressed=\{selectedValue\}/);
+assert.match(app,/onClick=\{\(\)=>facet\(quickFilterType,selectedValue\?'':option\.value\)\}/);
+assert.match(css,/\.prompt-quick-filters\s*\{/);
+assert.match(css,/html\[data-theme='dark'\] \.prompt-quick-filter/);
+
+// All configured categories and all of the user's teams are selectable,
+// including choices with no prompts. Long chip sets wrap instead of scrolling.
+assert.match(app,/ownTeamList\.map\(t=>\(\{value:t\.id,label:t\.name\}\)\)/);
+assert.match(app,/data\.categories\.map\(c=>c\.name\)/);
+assert.match(css,/\.prompt-quick-filters\s*\{[^}]*flex-wrap: wrap/s);
+assert.match(css,/\.prompt-quick-filters\s*\{[^}]*overflow: visible/s);
+assert.doesNotMatch(css,/\.prompt-quick-filters\s*\{[^}]*overflow-x:\s*auto/s);
+
+console.log('PASS: direct category and team quick filters');

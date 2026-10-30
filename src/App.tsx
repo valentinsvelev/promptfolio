@@ -3,7 +3,7 @@ import {
   ArrowLeft, ArrowRight, ArrowUpRight, Bell, BookOpen, Check, CheckCircle2, ChevronDown,
   ChevronRight, Clipboard, Clock3, Copy, Download, FileClock, FileText, FolderClosed, Heart, Pencil,
   LayoutGrid, Lightbulb, List, LockKeyhole, LogOut, Menu, MoreHorizontal, Plus, RotateCcw,
-  Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Tag, Trash2, Users,
+  Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Sun, Moon, Tag, Trash2, Users,
   X, type LucideIcon,
 } from 'lucide-react';
 import {accountAdmin, changePassword, client, demoIdentity, execute, favorite, guestSampleData, identity, isDemo, loadData, loadLikeCounts, resetPassword, signIn, signOut, signUp, updateDisplayName, loadListifyPreference, saveListifyPreference, updatePassword} from './api';
@@ -97,6 +97,25 @@ function AccountSettings({name,email,statistics,onSaveName,onSavePassword,onClos
   </Modal>;
 }
 
+function RenameTeamDialog({team,onClose,onSave}:{team:{id:string;name:string};onClose:()=>void;onSave:(name:string)=>Promise<boolean>}){
+  const [name,setName]=useState(team.name);
+  const [saving,setSaving]=useState(false);
+  const candidate=name.trim();
+  async function submit(e:FormEvent){
+    e.preventDefault();
+    if(candidate.length<2||candidate.length>80||candidate===team.name)return;
+    setSaving(true);
+    try{if(await onSave(candidate))onClose();}finally{setSaving(false);}
+  }
+  return <Modal onClose={()=>{if(!saving)onClose()}}>
+    <form className="rename-team-dialog" onSubmit={submit}>
+      <div className="modal-header"><div><h2>Rename team</h2><p>Update the name shown throughout Promptfolio. Existing prompts and memberships stay unchanged.</p></div><button type="button" className="round-icon" aria-label="Close rename team dialog" onClick={onClose} disabled={saving}><X size={19}/></button></div>
+      <div className="rename-team-body"><label className="field">Team name<input autoFocus required minLength={2} maxLength={80} value={name} onChange={e=>setName(e.target.value)}/></label></div>
+      <div className="modal-footer"><div><Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button><Button type="submit" disabled={saving||candidate.length<2||candidate.length>80||candidate===team.name}>{saving?'Renaming…':'Save name'}</Button></div></div>
+    </form>
+  </Modal>;
+}
+
 function Empty({title,description,icon:Icon=BookOpen,action}:{title:string;description:string;icon?:LucideIcon;action?:ReactNode}){return <div className="empty"><div className="empty-symbol"><Icon size={22}/></div><h3>{title}</h3><p>{description}</p>{action}</div>}
 function Flag({children,tone='neutral'}:{children:ReactNode;tone?:'neutral'|'green'|'violet'|'amber'}){return <span className={`flag flag-${tone}`}>{children}</span>}
 function IconTile({category}:{category:string}){const item=categories[category]||categories.General;const Icon=item.icon;return <span className={`icon-tile tone-${item.tone}`}><Icon size={18} strokeWidth={1.8}/></span>}
@@ -172,10 +191,10 @@ function PromptEditor({editor,body,teams,categoryNames,existingTitles,onClose,on
   </form></Modal>;
 }
 
-function PromptRow({prompt,version,active,onSelect,onCopy,owner,likes,listified}:{prompt:Prompt;version:PromptVersion;active:boolean;onSelect:()=>void;onCopy:()=>void;owner:string;likes:number;listified:boolean}){
+function PromptRow({prompt,version,active,onSelect,onCopy,onDoubleClick,owner,likes,listified}:{prompt:Prompt;version:PromptVersion;active:boolean;onSelect:()=>void;onCopy:()=>void;onDoubleClick:()=>void;owner:string;likes:number;listified:boolean}){
   return <div className={`prompt-row-shell ${listified?'prompt-row-shell-listified':''}`}>
-    {listified?<button type="button" className={`prompt-row prompt-row-listified ${active?'is-active':''}`} onClick={onSelect} aria-label={`Open ${version.title}`}><span className="row-listify-body"><strong className="row-title">{version.title}</strong><span className="row-listify-updated">Last updated: {when(prompt.updated_at)}</span></span></button>
-      :<button type="button" className={`prompt-row ${active?'is-active':''}`} onClick={onSelect}><IconTile category={version.category}/><span className="row-body"><span className="row-caps">{version.category}<span className="caps-dot">·</span>{owner}</span><strong className="row-title">{version.title}</strong><span className="row-description">{version.description||'A ready-to-use prompt shared with the library.'}</span><span className="row-byline">{when(prompt.updated_at)}<span className="row-likes" aria-label={`${likes} likes`}><Heart size={13}/>{likes}</span></span></span><ChevronRight size={18} className="row-arrow"/></button>}
+    {listified?<button type="button" className={`prompt-row prompt-row-listified ${active?'is-active':''}`} onClick={onSelect} onDoubleClick={onDoubleClick} aria-label={`Open ${version.title}`}><span className="row-listify-body"><strong className="row-title">{version.title}</strong><span className="row-listify-updated">Last updated: {when(prompt.updated_at)}</span></span></button>
+      :<button type="button" className={`prompt-row ${active?'is-active':''}`} onClick={onSelect} onDoubleClick={onDoubleClick}><IconTile category={version.category}/><span className="row-body"><span className="row-caps">{version.category}<span className="caps-dot">·</span>{owner}</span><strong className="row-title">{version.title}</strong><span className="row-description">{version.description||'A ready-to-use prompt shared with the library.'}</span><span className="row-byline">{when(prompt.updated_at)}<span className="row-likes" aria-label={`${likes} likes`}><Heart size={13}/>{likes}</span></span></span><ChevronRight size={18} className="row-arrow"/></button>}
     <button type="button" className="row-copy-button" aria-label={`Copy ${version.title} to clipboard`} title="Copy prompt text" onClick={onCopy}><Copy size={15}/></button>
   </div>;
 }
@@ -216,9 +235,7 @@ export default function App(){
   const [ready,setReady]=useState(false); const [busy,setBusy]=useState(false);
   const [toast,setToast]=useState(''); const [view,setView]=useState<View>('explore');
   const [filter,setFilter]=useState<Filter>('All prompts');const [query,setQuery]=useState('');
-  // The three primary Explore tabs start at a choice screen, not an open library.
-  const [exploreChoice,setExploreChoice]=useState<'all'|'categories'|'teams'|null>(null);
-  const [chosenItems,setChosenItems]=useState<string[]>([]);
+  // Explore tabs show their prompt lists directly.
   const [listified,setListified]=useState(false);
   const [listifyLoadedFor,setListifyLoadedFor]=useState<string|null>(null);
   // Serialize saves so rapid toggles cannot overwrite a newer choice.
@@ -227,7 +244,6 @@ export default function App(){
   const [bulkExportOpen,setBulkExportOpen]=useState(false);
   const [exportIds,setExportIds]=useState<string[]>([]);
   const [searchExpanded,setSearchExpanded]=useState(false);
-  const [manualSearchOpen,setManualSearchOpen]=useState(false);
   const [selectedId,setSelectedId]=useState<string|null>(null); const [showMobileDetail,setShowMobileDetail]=useState(false);
   const [editor,setEditor]=useState<EditorState|null>(null);const [confirm,setConfirm]=useState<null|{title:string;description:string;confirm:string;run:()=>Promise<void>}>(null);
   const [shareId,setShareId]=useState<string|null>(null);const [shareTeam,setShareTeam]=useState('');
@@ -238,16 +254,25 @@ export default function App(){
   const accountMenuRef=useRef<HTMLDivElement|null>(null);
   const accountTriggerRef=useRef<HTMLButtonElement|null>(null);
   const [noticeOpen,setNoticeOpen]=useState(false);
+  // Theme is a presentation preference; it does not affect Supabase data or permissions.
+  const [darkMode,setDarkMode]=useState<boolean>(()=>{
+    try{return window.localStorage.getItem('promptfolio:theme')==='dark'}catch{return false}
+  });
+  useEffect(()=>{
+    document.documentElement.dataset.theme=darkMode?'dark':'light';
+    try{window.localStorage.setItem('promptfolio:theme',darkMode?'dark':'light')}catch{/* Storage may be unavailable. */}
+  },[darkMode]);
   const [advancedOpen,setAdvancedOpen]=useState(false);
   const [facets,setFacets]=useState({team:'',owner:'',category:'',tag:'',lifecycle:'',approval:'',updated:''});
   const [recommendOnly,setRecommendOnly]=useState(false);
   const [compare,setCompare]=useState<{prompt:Prompt;versionId:string}|null>(null);
   const [restoreNote,setRestoreNote]=useState('');
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [teamToRename,setTeamToRename]=useState<{id:string;name:string}|null>(null);
   const [newPassword,setNewPassword]=useState('');
   const [recoveryMode,setRecoveryMode]=useState(false);
 
-  useEffect(()=>{const onKey=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setView('explore');setFilter('All prompts');setExploreChoice('all');setSelectedId(null);setSearchExpanded(true)}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[]);
+  useEffect(()=>{const onKey=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setView('explore');setFilter('All prompts');setSelectedId(null);setSearchExpanded(true)}};window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey)},[]);
   useEffect(()=>{if(searchExpanded)searchInputRef.current?.focus()},[searchExpanded,view]);
   // Dismiss the account dropdown when clicking elsewhere or pressing Escape.
   useEffect(()=>{
@@ -330,14 +355,6 @@ export default function App(){
     return items;
   },[data,myTeams]);
   const accessible=useMemo(()=>data.prompts.filter(p=>!p.deleted_at&&(guest?(p.lifecycle==='published'):visible(p))&&!!official(p)),[data,user,myTeams,guest]);
-  const guidedExplore=view==='explore'&&(filter==='All prompts'||filter==='Personal'||filter==='My teams');
-  const awaitingExploreChoice=guidedExplore&&exploreChoice===null;
-  const choicePool=accessible.filter(p=>
-    filter==='Personal'?p.owner_user_id===user?.id:
-    filter==='My teams'?isMember(p.owner_team_id):true
-  );
-  const categoryChoices=[...new Set(choicePool.map(p=>official(p)?.category).filter((v):v is string=>!!v))].sort((a,b)=>a.localeCompare(b));
-  const teamChoices=ownTeamList.map(t=>({id:t.id,name:t.name,count:choicePool.filter(p=>p.owner_team_id===t.id).length}));
   const settingsStatistics=useMemo<AccountStatistic[]>(()=>{
     // Respect Supabase RLS: these totals include only prompts visible to this account.
     const allowed=data.prompts.filter(p=>!p.deleted_at&&visible(p));
@@ -362,8 +379,6 @@ export default function App(){
       if(filter==='Other teams')found=found.filter(p=>!!p.owner_team_id&&!isMember(p.owner_team_id));
       if(filter==='Favorites')found=found.filter(p=>data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===p.id));
     }
-    if(guidedExplore&&exploreChoice==='categories')found=found.filter(p=>chosenItems.includes(official(p)?.category||''));
-    if(guidedExplore&&exploreChoice==='teams')found=found.filter(p=>!!p.owner_team_id&&chosenItems.includes(p.owner_team_id));
     if(facets.team)found=found.filter(p=>p.owner_team_id===facets.team);
     if(facets.owner)found=found.filter(p=>p.created_by===facets.owner||p.owner_user_id===facets.owner);
     if(facets.category)found=found.filter(p=>official(p)?.category===facets.category);
@@ -374,7 +389,24 @@ export default function App(){
     if(recommendOnly)found=found.filter(p=>data.recommendations.some(r=>r.prompt_id===p.id));
     const q=query.trim().toLowerCase();if(q)found=found.filter(p=>{const v=official(p);return [v?.title,v?.description,v?.category,v?.content,v?.tags.join(' '),owner(p)].join(' ').toLowerCase().includes(q)});
     return [...found].sort((a,b)=>b.updated_at.localeCompare(a.updated_at));
-  },[accessible,view,filter,query,data.favorites,data.recommendations,user,facets,recommendOnly,guidedExplore,exploreChoice,chosenItems]);
+  },[accessible,view,filter,query,data.favorites,data.recommendations,user,facets,recommendOnly]);
+  // Quick filters use the exact same facet state as the advanced Filters dialog.
+  // Derive choices from this tab's accessible prompts, before applying filters.
+  const quickFilterType = view==='explore' && filter==='My teams' ? 'team'
+    : view==='explore' && (filter==='All prompts' || filter==='Personal') ? 'category' : null;
+  const quickFilterBase = filter==='Personal' ? accessible.filter(p=>p.owner_user_id===user?.id)
+    : filter==='My teams' ? accessible.filter(p=>isMember(p.owner_team_id)) : accessible;
+  // Keep every permitted choice available: empty teams and configured categories
+  // should not disappear merely because they have no prompts yet.
+  const quickFilterOptions = quickFilterType==='team'
+    ? ownTeamList.map(t=>({value:t.id,label:t.name}))
+        .sort((a,b)=>a.label.localeCompare(b.label))
+    : quickFilterType==='category'
+      ? [...new Set([
+          ...data.categories.map(c=>c.name),
+          ...quickFilterBase.map(p=>official(p)?.category).filter((v):v is string=>!!v),
+        ])].filter(Boolean).sort((a,b)=>a.localeCompare(b)).map(value=>({value,label:value}))
+      : [];
   const selected=selectedId?searchable.find(p=>p.id===selectedId)||null:null;
   const selectedVersion=selected?official(selected):undefined;
   const selectedLatest=selected?data.versions.find(v=>v.id===selected.latest_version_id):undefined;
@@ -392,7 +424,7 @@ export default function App(){
       if(editor?.mode==='suggest'||editor?.prompt?.owner_team_id)return execute('propose_improvement',{pid:editor.prompt!.id,payload,explanation:note});
       return execute('save_prompt_version',{pid:editor!.prompt!.id,payload,note});
     },editor?.mode==='suggest'?'Suggestion submitted for review.':editor?.mode==='edit'?'New version saved.':'Your prompt was saved.');
-    if(result){setEditor(null);if(typeof result==='string'&&editor?.mode==='create'){setSelectedId(result);setFilter('All prompts');setExploreChoice('all');setView('explore')}}
+    if(result){setEditor(null);if(typeof result==='string'&&editor?.mode==='create'){setSelectedId(result);setFilter('All prompts');setView('explore')}}
   }
   function askPermanentlyDelete(p:Prompt){
     const promptTitle=official(p)?.title||'this prompt';
@@ -436,33 +468,19 @@ export default function App(){
     } catch(e){notify(e instanceof Error?e.message:'Could not import the file.');}
   }
   function resetDiscovery(){
-    setExploreChoice(null);setChosenItems([]);
-    setQuery('');setSearchExpanded(false);setAdvancedOpen(false);setManualSearchOpen(false);
+    setQuery('');setSearchExpanded(false);setAdvancedOpen(false);
     setFacets({team:'',owner:'',category:'',tag:'',lifecycle:'',approval:'',updated:''});
     setRecommendOnly(false);setSelectedId(null);setShowMobileDetail(false);
     setBulkExportOpen(false);setExportIds([]);
   }
-  // Manual search uses the same keyword and facet state as the results toolbar.
-  // Choosing another discovery route starts with a clean search.
-  function clearManualSearch(){
-    setQuery('');
-    setFacets({team:'',owner:'',category:'',tag:'',lifecycle:'',approval:'',updated:''});
-    setRecommendOnly(false);
-    setSelectedId(null);
-  }
-  function submitManualSearch(){
-    setManualSearchOpen(false);
-    setChosenItems([]);
-    setExploreChoice('all');
-    setSelectedId(null);
-    setShowMobileDetail(false);
-  }
-  // Selecting a category or team immediately opens its prompts (one choice at a time).
-  function openChoiceItem(item:string){
-    clearManualSearch();
-    setChosenItems([item]);
-    setExploreChoice(filter==='My teams'?'teams':'categories');
-    setSelectedId(null);setShowMobileDetail(false);
+  // Double-click respects the same write permissions as the prompt detail action.
+  function openEditorForPrompt(p:Prompt){
+    if(guest||!user||busy)return;
+    if(p.owner_team_id){
+      if(canSuggest(p))setEditor({mode:'suggest',prompt:p});
+    }else if(p.owner_user_id===user.id){
+      setEditor({mode:'edit',prompt:p});
+    }
   }
   function toggleListify(){
     if(user && listifyLoadedFor!==user.id)return; // Avoid overwriting an unhydrated preference.
@@ -507,45 +525,24 @@ export default function App(){
   if(user&&(recoveryMode||blocked?.must_change_password))return <div className="session-gate"><Logo/><form onSubmit={async e=>{e.preventDefault();try{if(blocked?.must_change_password)await accountAdmin('complete_temp_password',{password:newPassword});else await updatePassword(newPassword);setNewPassword('');setRecoveryMode(false);await reload();notify('Password updated.');}catch(err){notify(err instanceof Error?err.message:'Password update failed');}}}><h2>{blocked?.must_change_password?'Change your temporary password':'Reset your password'}</h2><p>{blocked?.must_change_password?'A personal password is required before you can access company prompts.':'Choose your new account password.'}</p><label className="field">New password<input type="password" required minLength={12} value={newPassword} onChange={e=>setNewPassword(e.target.value)} autoComplete="new-password"/></label><Button type="submit">Update password <ArrowRight size={16}/></Button></form>{toast&&<div className="toast">{toast}</div>}</div>;
   return <div className="app"><header className="topbar"><div className="container topbar-in"><a href={import.meta.env.BASE_URL} className="brand-link" onClick={e=>{e.preventDefault();navigate('explore')}}><Logo/></a>
     {(user||guest)&&<nav className="main-nav" aria-label="Main navigation">{(guest?[['explore','Explore']] as [View,string][]:[['explore','Explore'],['mine','My prompts'],['teams','Teams'],['reviews','Reviews']] as [View,string][]).map(([v,t])=><button key={v} className={`nav-link ${view===v?'active':''}`} onClick={()=>navigate(v)}>{t}{v==='reviews'&&reviewQueue.length>0&&<span className="nav-bubble">{reviewQueue.length}</span>}</button>)}{isAdmin&&<button className={`nav-link ${view==='admin'?'active':''}`} onClick={()=>navigate('admin')}>Admin</button>}</nav>}
-    <div className="topbar-right">{user?<><button className="notice-trigger" aria-label="Open notifications" onClick={()=>setNoticeOpen(true)}><Bell size={17}/>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length>0&&<b>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length}</b>}</button><Button onClick={()=>setEditor({mode:'create'})} className="top-new"><Plus size={17}/> New prompt</Button><div className="account-wrap" ref={accountMenuRef}><button type="button" ref={accountTriggerRef} className="profile-button" title="Open account menu" aria-expanded={accountOpen} aria-haspopup="true" onClick={()=>setAccountOpen(s=>!s)}><Avatar name={person(user.id)}/><ChevronDown size={14}/></button>{accountOpen&&<div className="account-menu"><div className="account-menu-head"><strong>{person(user.id)}</strong><span>{user.email}</span></div><div className="menu-separator"/><button onClick={()=>{setSettingsOpen(true);setAccountOpen(false)}}><Settings2 size={16}/> Settings</button><button onClick={async()=>{if(!isDemo)await signOut();setUser(null);setData(emptyData());setAccountOpen(false);setSelectedId(null)}}><LogOut size={16}/> Sign out</button></div>}</div></>:guest?<Button variant="outline" onClick={()=>{setGuest(false);setData(emptyData());setSelectedId(null)}}>Sign in <ArrowRight size={15}/></Button>:null}</div></div></header>
+    <div className="topbar-right"><button type="button" className="theme-toggle" aria-label={darkMode?'Switch to light mode':'Switch to dark mode'} title={darkMode?'Switch to light mode':'Switch to dark mode'} aria-pressed={darkMode} onClick={()=>setDarkMode(v=>!v)}>{darkMode?<Sun size={17}/>:<Moon size={17}/>}</button>{user?<><button className="notice-trigger" aria-label="Open notifications" onClick={()=>setNoticeOpen(true)}><Bell size={17}/>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length>0&&<b>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length}</b>}</button><Button onClick={()=>setEditor({mode:'create'})} className="top-new"><Plus size={17}/> New prompt</Button><div className="account-wrap" ref={accountMenuRef}><button type="button" ref={accountTriggerRef} className="profile-button" title="Open account menu" aria-expanded={accountOpen} aria-haspopup="true" onClick={()=>setAccountOpen(s=>!s)}><Avatar name={person(user.id)}/><ChevronDown size={14}/></button>{accountOpen&&<div className="account-menu"><div className="account-menu-head"><strong>{person(user.id)}</strong><span>{user.email}</span></div><div className="menu-separator"/><button onClick={()=>{setSettingsOpen(true);setAccountOpen(false)}}><Settings2 size={16}/> Settings</button><button onClick={async()=>{if(!isDemo)await signOut();setUser(null);setData(emptyData());setAccountOpen(false);setSelectedId(null)}}><LogOut size={16}/> Sign out</button></div>}</div></>:guest?<Button variant="outline" onClick={()=>{setGuest(false);setData(emptyData());setSelectedId(null)}}>Sign in <ArrowRight size={15}/></Button>:null}</div></div></header>
 
   {!user&&!guest?<main className="container"><Auth onLogin={async u=>{setGuest(false);setUser(u);await reload()}} onDemo={async()=>{setUser(demoIdentity);await reload()}} onGuest={()=>{setData(guestSampleData());setGuest(true);setView('explore');setSelectedId(null)}} busy={busy} message={notify} onNotice={notify}/></main>:<main className="container app-main">
   {hasExplore?<><section className="hero"><div><h1>{view==='mine'?<>Manage your prompts<span className="accent-dot">.</span></>:<>Collaborative prompt portfolio<span className="accent-dot">.</span></>}</h1><p>{view==='mine'?'Get an overview of all your personal promts and the prompts from your teams.':guest?'Preview sample prompts without an account. Sign in for your team library.':'Discover what others have built, adapt it to your work, and share what works.'}</p></div></section>
   <div className="filters-bar"><div className="filter-list">{view==='explore'?(['All prompts','Personal','My teams','Other teams','Favorites'] as Filter[]).filter(x=>!guest||x==='All prompts').map(x=><button className={`filter-chip ${filter===x?'selected':''}`} key={x} onClick={()=>{setFilter(x);resetDiscovery()}}>{x}</button>):<><button className={`filter-chip ${!mineTrash?'selected':''}`} onClick={()=>setMineTrash(false)}>My library</button><button className={`filter-chip ${mineTrash?'selected':''}`} onClick={()=>setMineTrash(true)}>Trash</button></>}</div>{view==='mine'&&<button className="import-control" onClick={()=>importRef.current?.click()}><Plus size={13}/> Import prompt</button>}</div>
-   {!awaitingExploreChoice&&(Object.values(facets).some(Boolean)||recommendOnly)&&<div className="active-filters active-filters-standalone">{(Object.entries(facets) as [keyof typeof facets,string][]).filter(([,v])=>!!v).map(([key,value])=>{const label=key==='team'?data.teams.find(t=>t.id===value)?.name||value:key==='owner'?data.profiles.find(t=>t.id===value)?.display_name||value:value;return <button key={key} className="active-filter-chip" onClick={()=>facet(key,'')} aria-label={`Remove ${key} filter`}><span>{labelize(key)}: {label}</span><X size={13}/></button>})}{recommendOnly&&<button className="active-filter-chip" onClick={()=>setRecommendOnly(false)}>Recommended <X size={13}/></button>}</div>}
-  {awaitingExploreChoice?<section className="explore-choice-screen" aria-label="Choose how to browse prompts">
-    <h2>{filter==='All prompts'?'Explore the library':filter==='Personal'?'Your personal library':'Your team libraries'}</h2>
-    <p>Choose how you would like to browse this collection.</p>
-    <div className="explore-choice-actions">
-      <section className="explore-choice-card explore-choice-select" aria-labelledby="explore-select-title">
-        <div className="choice-select-heading">
-          <strong id="explore-select-title">{filter==='My teams'?'Select teams':'Select categories'}</strong>
-          <small>Tap a {filter==='My teams'?'team':'category'} to browse its prompts.</small>
-        </div>
-        <div className="choice-chip-list" role="group" aria-label={filter==='My teams'?'Choose a team':'Choose a category'}>
-          {filter==='My teams'?teamChoices.map(t=><button key={t.id} type="button" className="choice-chip" onClick={()=>openChoiceItem(t.id)}>{t.name}<span>{t.count}</span></button>):categoryChoices.map(c=><button key={c} type="button" className="choice-chip" onClick={()=>openChoiceItem(c)}>{c}<span>{choicePool.filter(p=>official(p)?.category===c).length}</span></button>)}
-          {(filter==='My teams'?teamChoices.length:categoryChoices.length)===0&&<p className="choice-empty">No {filter==='My teams'?'teams':'categories'} available yet.</p>}
-        </div>
-      </section>
-      <button type="button" className="explore-choice-card explore-choice-all" onClick={()=>{clearManualSearch();setExploreChoice('all');setSelectedId(null)}}>
-        <span className="choice-symbol"><LayoutGrid size={24}/></span>
-        <strong>Show all prompts</strong>
-        <small>Browse every prompt available in this view.</small>
-      </button>
-    </div>
-    <button type="button" className="explore-choice-card explore-choice-all explore-manual-trigger" aria-haspopup="dialog" aria-expanded={manualSearchOpen} onClick={()=>setManualSearchOpen(true)}>
-      <span className="choice-symbol"><Search size={24} aria-hidden="true"/></span>
-      <strong>Manual search</strong>
-      <small>Search by keywords or refine results using advanced filters.</small>
-    </button>
-  </section>:view==='mine'&&mineTrash?<div className="trash-container"><div className="list-top"><h2>Recently deleted</h2></div>{data.prompts.filter(p=>p.deleted_at&&canEdit(p)).map(p=><div className="trash-item" key={p.id}><Trash2 size={18}/><div><strong>{official(p)?.title||'Untitled prompt'}</strong><p>Deleted {when(p.deleted_at||undefined)}</p></div><div className="trash-item-actions"><Button variant="outline" disabled={busy} onClick={()=>doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:true}),'Prompt restored.')}><RotateCcw size={15}/> Restore</Button>{(p.owner_user_id===user?.id||(p.owner_team_id&&(isManager(p.owner_team_id)||isAdmin)))&&<Button variant="outline" className="trash-delete-forever" disabled={busy} onClick={()=>askPermanentlyDelete(p)}><Trash2 size={15}/> Delete permanently</Button>}</div></div>)}{!data.prompts.some(p=>p.deleted_at&&canEdit(p))&&<Empty title="Your trash is empty" description="Deleted prompts will appear here while they can still be restored." icon={Trash2}/>}</div>:<div className="workspace"><div className="prompt-results"><div className="list-top list-top-tools">
+
+  {view==='mine'&&mineTrash?<div className="trash-container"><div className="list-top"><h2>Recently deleted</h2></div>{data.prompts.filter(p=>p.deleted_at&&canEdit(p)).map(p=><div className="trash-item" key={p.id}><Trash2 size={18}/><div><strong>{official(p)?.title||'Untitled prompt'}</strong><p>Deleted {when(p.deleted_at||undefined)}</p></div><div className="trash-item-actions"><Button variant="outline" disabled={busy} onClick={()=>doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:true}),'Prompt restored.')}><RotateCcw size={15}/> Restore</Button>{(p.owner_user_id===user?.id||(p.owner_team_id&&(isManager(p.owner_team_id)||isAdmin)))&&<Button variant="outline" className="trash-delete-forever" disabled={busy} onClick={()=>askPermanentlyDelete(p)}><Trash2 size={15}/> Delete permanently</Button>}</div></div>)}{!data.prompts.some(p=>p.deleted_at&&canEdit(p))&&<Empty title="Your trash is empty" description="Deleted prompts will appear here while they can still be restored." icon={Trash2}/>}</div>:<div className="workspace"><div className="prompt-results"><div className="list-top list-top-tools">
     <span className="results-count" role="status">{searchable.length} {searchable.length===1?'result':'results'}</span>
     <div className="prompt-toolbar" role="toolbar" aria-label="Prompt actions">
+      {quickFilterType&&quickFilterOptions.length>0&&<div className="prompt-quick-filters" role="group" aria-label={quickFilterType==='team'?'Quick team filters':'Quick category filters'}>
+        {quickFilterOptions.map(option=>{const selectedValue=facets[quickFilterType]===option.value;return <button key={option.value} type="button" className={`prompt-quick-filter ${selectedValue?'is-active':''}`} aria-pressed={selectedValue} title={`${selectedValue?'Clear':'Show'} ${quickFilterType}: ${option.label}`} onClick={()=>facet(quickFilterType,selectedValue?'':option.value)}>{option.label}</button>})}
+      </div>}
+      <div className="prompt-toolbar-actions" role="group" aria-label="Filter, search, view and export actions">
       <button type="button" className={`prompt-toolbar-button ${advancedOpen?'is-open':''}`} data-tooltip="Filters" aria-label="Filters" aria-haspopup="dialog" aria-expanded={advancedOpen} onClick={()=>{setSearchExpanded(false);setAdvancedOpen(true)}}><SlidersHorizontal size={16}/>{Object.values(facets).filter(Boolean).length+(recommendOnly?1:0)>0&&<span className="active-filter-count">{Object.values(facets).filter(Boolean).length+(recommendOnly?1:0)}</span>}</button>
       <button type="button" className={`prompt-toolbar-button ${searchExpanded?'is-open':''}`} data-tooltip="Keywords search" aria-label="Keywords search" aria-haspopup="dialog" aria-expanded={searchExpanded} onClick={()=>{setAdvancedOpen(false);setSearchExpanded(true)}}><Search size={16}/>{query.trim()&&<span className="search-active-dot" aria-hidden="true"/>}</button>
-      {guidedExplore&&exploreChoice!==null&&<button type="button" className="prompt-toolbar-button" data-tooltip="Back to selection" aria-label="Back to selection" onClick={resetDiscovery}><ArrowLeft size={16}/></button>}
       {(view==='explore'||(view==='mine'&&!mineTrash))&&<button type="button" className={`prompt-toolbar-button ${listified?'is-open':''}`} data-tooltip={listified?'Detailed view':'Listify'} aria-label={listified?'Detailed view':'Listify'} onClick={toggleListify} disabled={!!user&&listifyLoadedFor!==user.id} aria-pressed={listified}><List size={16}/></button>}
       <button type="button" className={`prompt-toolbar-button ${bulkExportOpen?'is-open':''}`} data-tooltip={bulkExportOpen?'Cancel bulk selection':'Export multiple prompts'} aria-label={bulkExportOpen?'Cancel bulk selection':'Export multiple prompts'} aria-pressed={bulkExportOpen} onClick={()=>{setBulkExportOpen(x=>!x);setExportIds([])}}><Download size={16}/></button>
+      </div>
     </div>
   </div>
   {bulkExportOpen&&<div className="bulk-export-toolbar" role="group" aria-label="Export multiple prompts">
@@ -555,36 +552,23 @@ export default function App(){
   </div>}
   <div className="rows">{searchable.map(p=>{const v=official(p);return v&&<div key={p.id} className={`bulk-prompt-row ${bulkExportOpen?'is-selecting':''}`}>
     {bulkExportOpen&&<label className="bulk-prompt-checkbox"><input type="checkbox" aria-label={`Select ${v.title} for export`} checked={exportIds.includes(p.id)} onChange={e=>setExportIds(old=>e.target.checked?[...old,p.id]:old.filter(id=>id!==p.id))}/></label>}
-    <PromptRow prompt={p} version={v} onCopy={()=>{void navigator.clipboard.writeText(v.content).then(()=>notify('Prompt copied to clipboard.')).catch(()=>notify('Unable to copy prompt to clipboard.'))}} listified={listified} owner={owner(p)} likes={guest?0:likeCounts[p.id]||0} active={selected?.id===p.id} onSelect={()=>{setSelectedId(p.id);setShowMobileDetail(true)}}/>
+    <PromptRow prompt={p} version={v} onDoubleClick={()=>openEditorForPrompt(p)} onCopy={()=>{void navigator.clipboard.writeText(v.content).then(()=>notify('Prompt copied to clipboard.')).catch(()=>notify('Unable to copy prompt to clipboard.'))}} listified={listified} owner={owner(p)} likes={guest?0:likeCounts[p.id]||0} active={selected?.id===p.id} onSelect={()=>{setSelectedId(p.id);setShowMobileDetail(true)}}/>
   </div>})}
   {searchable.length===0&&<Empty title="No prompts found" description="Try a different search, or be the first to add a prompt." action={guest?undefined:<Button onClick={()=>setEditor({mode:'create'})}><Plus size={16}/> Create prompt</Button>}/>}
   </div></div><aside className={`detail-panel ${showMobileDetail?'mobile-visible':''}`}>{selected&&selectedVersion?<PromptDetail key={selected.id+selectedVersion.id} prompt={selected} version={selectedVersion} latest={selectedLatest} history={history(selected.id)} owner={owner(selected)} creator={person(selected.created_by)} lastEditor={person(selectedLatest?.author_id||selectedVersion.author_id)} canEdit={!guest&&canEdit(selected)} canSuggest={!guest&&canSuggest(selected)} saved={!guest&&data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===selected.id)} onClose={()=>setShowMobileDetail(false)} recommended={data.recommendations.some(r=>r.prompt_id===selected.id)} isManager={!guest&&isManager(selected.owner_team_id)} readOnly={guest} onCompare={versionId=>setCompare({prompt:selected,versionId})} onDeprecate={()=>{const reason=window.prompt("Why should this prompt be deprecated?");if(reason&&reason.trim().length>=3)void doAction(()=>execute('deprecate_team_prompt',{pid:selected.id,reason}),'Team prompt deprecated.')}} onRecommend={()=>doAction(()=>execute('set_team_recommendation',{pid:selected.id,recommend:!data.recommendations.some(r=>r.prompt_id===selected.id)}),'Recommendation updated.')} onFavorite={()=>{if(guest){notify('Sign in to like or save a prompt.');return;}void toggleFavorite(selected)}} onDuplicate={()=>{if(guest){notify('Sign in to duplicate prompts.');return;}void copySelected(selected)}} onEdit={()=>setEditor({mode:selected.owner_team_id?'suggest':'edit',prompt:selected})} onSuggest={()=>setEditor({mode:'suggest',prompt:selected})} onLifecycle={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:selected.lifecycle==='published'?'draft':'published'}),'Lifecycle updated.')} onDelete={()=>askDelete(selected)} onRequest={id=>doAction(()=>execute('request_version_review',{vid:id}),'Sent for review.')} onArchive={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:'archived'}),'Prompt archived.')} onRestore={()=>doAction(()=>execute('soft_delete_prompt',{pid:selected.id,recover:true}),'Prompt restored.')} onShare={()=>{setShareId(selected.id);setShareTeam(ownTeamList[0]?.id||'')}}/>:<Empty title="Select a prompt" description="Choose a prompt from the list to preview it here."/>}</aside></div>}</>:<><section className="subhero"><h1>{view==='teams'?'Manage your teams':view==='reviews'?'Review queue':'Manage promptfolio'}<span className="accent-dot">.</span></h1><p>{view==='teams'?'Get an overview of the teams you are in.':view==='reviews'?'GitHub pull requests for your prompts!':'Control how promptfolio works.'}</p></section>
-  {view==='teams'&&<div className="teams-layout">{ownTeamList.length===0&&!isAdmin&&<Empty title="You're not part of a team yet" description="Your personal prompts are ready. Ask a manager to add you to a shared library." icon={LockKeyhole}/>} {ownTeamList.map(t=><TeamCard key={t.id} team={t} prompts={data.prompts.filter(p=>p.owner_team_id===t.id&&!p.deleted_at)} versions={data.versions} members={data.members.filter(m=>m.team_id===t.id)} profiles={data.profiles} manager={isManager(t.id)||isAdmin} onMember={async(email,action)=>{const found=data.profiles.find(p=>p.email.toLowerCase()===email.toLowerCase());if(!found){notify('That person needs to register an account first.');return}await doAction(()=>execute('manage_team_member',{tid:t.id,uid:found.id,operation:action}),action==='add'?'Member added.':'Member removed.')}}/>)}</div>}
+  {view==='teams'&&<div className="teams-layout">{ownTeamList.length===0&&!isAdmin&&<Empty title="You're not part of a team yet" description="Your personal prompts are ready. Ask a manager to add you to a shared library." icon={LockKeyhole}/>} {ownTeamList.map(t=><TeamCard key={t.id} team={t} prompts={data.prompts.filter(p=>p.owner_team_id===t.id&&!p.deleted_at)} versions={data.versions} members={data.members.filter(m=>m.team_id===t.id)} profiles={data.profiles} manager={isManager(t.id)||isAdmin} onRename={()=>setTeamToRename({id:t.id,name:t.name})} onMember={async(email,action)=>{const found=data.profiles.find(p=>p.email.toLowerCase()===email.toLowerCase());if(!found){notify('That person needs to register an account first.');return}await doAction(()=>execute('manage_team_member',{tid:t.id,uid:found.id,operation:action}),action==='add'?'Member added.':'Member removed.')}}/>)}</div>}
   {view==='reviews'&&<div className="reviews-layout"><div className="review-summary"><span><Clock3 size={18}/> Needs your attention</span><strong>{reviewQueue.length} pending</strong></div>{reviewQueue.map(item=>{const current=official(item.prompt);const proposed=item.kind==='version'?item.record as PromptVersion:(item.record as Proposal).proposed_content;const changed=item.kind==='version'?(item.record as PromptVersion).content:(item.record as Proposal).proposed_content.content;return <article className="review-card" key={item.record.id}><div className="review-card-header"><div><h3>{current?.title||proposed.title}</h3><p>{owner(item.prompt)} · submitted by {person(item.kind==='proposal'?(item.record as Proposal).author_id:(item.record as PromptVersion).author_id)}</p></div><Flag tone="amber">{item.kind==='proposal'?(item.record as Proposal).status.replace('_',' '):'Under review'}</Flag></div><div className="compare-grid"><div><div className="compare-label">Current official version</div><pre>{current?.content||'No approved version yet'}</pre></div><div><div className="compare-label">Proposed version</div><pre>{changed}</pre></div></div>{item.kind==='proposal'&&(item.record as Proposal).rationale&&<p className="review-rationale">Reason: {(item.record as Proposal).rationale}</p>}<div className="review-structured"><strong>Other fields</strong><div className="compare-grid"><div><small>Current · title / category / tags</small><p>{current?.title||'—'} · {current?.category||'—'} · {current?.tags.join(', ')||'—'}</p></div><div><small>Proposed · title / category / tags</small><p>{proposed.title} · {proposed.category} · {proposed.tags.join(', ')}</p></div></div></div><div className="review-footer"><input aria-label="Rejection reason" placeholder="Reason if rejecting…" value={reviewReason[item.record.id]||''} onChange={e=>setReviewReason(s=>({...s,[item.record.id]:e.target.value}))}/>{item.kind==='proposal'&&(item.record as Proposal).status==='open'&&<Button variant="outline" onClick={()=>doAction(()=>execute('set_proposal_under_review',{proposal_id:item.record.id}),'Proposal moved to Under Review.')}>Start review</Button>}<Button variant="outline" onClick={()=>askReview(item,false)}>Reject</Button><Button onClick={()=>askReview(item,true)}><Check size={15}/>{item.kind==='proposal'?'Accept proposal':'Approve version'}</Button></div></article>})}{reviewQueue.length===0&&<Empty title="All caught up" description="When your team needs an approval, it will appear here." icon={CheckCircle2}/>}</div>}
   {view==='admin'&&isAdmin&&<AdminSection data={data} busy={busy} onCreate={async(team,description,email)=>{const target=data.profiles.find(p=>p.email.toLowerCase()===email.toLowerCase());if(!target){notify('The manager must have an account first.');return}await doAction(()=>execute('create_team',{team_name:team,team_description:description,first_manager:target.id}),'Team created.')}} onManager={(tid,uid,promote)=>doAction(()=>execute('set_team_manager',{tid,uid,promote}),'Team role updated.')}/>}
   {view==='admin'&&isAdmin&&<AdminCategories categories={categoryNames} busy={busy} onRename={async(oldName,newName)=>{const result=await doAction(()=>execute('rename_category',{old_name:oldName,new_name:newName}),'Category renamed.');return result!==null}}/>}
-  {view==='admin'&&isAdmin&&<AdminAdvanced data={data} busy={busy} executeAction={async(name,args)=>await doAction(()=>execute(name,args),'Updated successfully.')} onIdentity={accountAdmin} onRefresh={reload} notify={notify}/>}
+  {view==='admin'&&isAdmin&&<AdminAdvanced data={data} busy={busy} executeAction={async(name,args)=>await doAction(()=>execute(name,args),'Updated successfully.')} onIdentity={accountAdmin} onRefresh={reload} notify={notify} onRenameTeam={team=>setTeamToRename(team)}/>}
   </>}
   </main>}
-  <footer className="footer"><div className="container"><span>© Promptfolio</span><span className="footer-build-info"><span>v{packageInfo.version}</span><span className="footer-dot">·</span><span>Last updated: {when(__PROMPTFOLIO_BUILD_DATE__)}</span></span></div></footer>
+   {teamToRename&&<RenameTeamDialog team={teamToRename} onClose={()=>setTeamToRename(null)} onSave={async newName=>{
+     const result=await doAction(()=>execute('rename_team',{tid:teamToRename.id,new_name:newName}),'Team renamed.');
+     return result!==null;
+   }}/>}
+   <footer className="footer"><div className="container"><span>© Promptfolio</span><span className="footer-build-info"><span>v{packageInfo.version}</span><span className="footer-dot">·</span><span>Last updated: {when(__PROMPTFOLIO_BUILD_DATE__)}</span></span></div></footer>
   <input aria-label="Import prompt file" type="file" accept=".json,.md,application/json,text/markdown" ref={importRef} hidden onChange={e=>{void importPrompt(e.target.files?.[0]);e.target.value=''}}/>
-  {manualSearchOpen&&<Modal wide onClose={()=>setManualSearchOpen(false)}>
-    <div className="manual-search-dialog">
-      <div className="modal-header"><div><h2>Manual search</h2><p>Search by keywords or combine filters to find exactly what you need.</p></div><button className="round-icon" type="button" aria-label="Close manual search" onClick={()=>setManualSearchOpen(false)}><X size={19}/></button></div>
-      <form className="manual-search-dialog-form" role="search" aria-label="Manual prompt search" onSubmit={e=>{e.preventDefault();submitManualSearch()}}>
-        <div className="manual-search-dialog-scroll">
-          <label className="manual-search-keyword-label" htmlFor="manualPromptSearch">Keywords</label>
-          <div className="manual-search-keyword-input"><Search size={17} aria-hidden="true"/><input id="manualPromptSearch" autoFocus type="search" placeholder="Search titles, prompt text, tags…" value={query} onChange={e=>{setQuery(e.target.value);setSelectedId(null)}}/></div>
-          <div className="manual-search-divider"><span>Refine your results</span></div>
-          <div className="manual-search-filter-fields">{filterControls}</div>
-        </div>
-        <div className="manual-search-actions">
-          <Button type="button" variant="outline" onClick={clearManualSearch}>Clear</Button>
-          <Button type="submit">Search prompts <ArrowRight size={15}/></Button>
-        </div>
-      </form>
-    </div>
-  </Modal>}
   {searchExpanded&&<Modal onClose={()=>setSearchExpanded(false)}><div className="search-dialog">
     <div className="modal-header"><div><h2>Keywords search</h2><p>Find prompts by title, content, tags, or team.</p></div><button className="round-icon" type="button" aria-label="Close keywords search" onClick={()=>setSearchExpanded(false)}><X size={19}/></button></div>
     <form role="search" className="search-dialog-form" onSubmit={e=>{e.preventDefault();setSearchExpanded(false)}}>
@@ -652,7 +636,7 @@ function AdminCategories({categories,busy,onRename}:{categories:string[];busy:bo
   </section>;
 }
 
-function AdminAdvanced({data,busy,executeAction,onIdentity,onRefresh,notify}:{data:AppData;busy:boolean;executeAction:(name:string,args:Record<string,unknown>)=>Promise<unknown>;onIdentity:typeof accountAdmin;onRefresh:()=>Promise<void>;notify:(s:string)=>void}){
+function AdminAdvanced({data,busy,executeAction,onIdentity,onRefresh,notify,onRenameTeam}:{data:AppData;busy:boolean;executeAction:(name:string,args:Record<string,unknown>)=>Promise<unknown>;onIdentity:typeof accountAdmin;onRefresh:()=>Promise<void>;notify:(s:string)=>void;onRenameTeam:(team:{id:string;name:string})=>void}){
  const [email,setEmail]=useState('');const [displayName,setDisplayName]=useState('');const [credential,setCredential]=useState<{password:string;expires:string}|null>(null);
  const [target,setTarget]=useState('');const [retention,setRetention]=useState(data.settings[0]?.retention_days||30);
  const [hours,setHours]=useState(data.settings[0]?.temporary_password_hours||48);
@@ -661,10 +645,10 @@ function AdminAdvanced({data,busy,executeAction,onIdentity,onRefresh,notify}:{da
  return <div className="admin-extras"><section className="admin-card"><h3>Manage the accounts.</h3><p>Credentials are generated server-side and displayed once.</p><form onSubmit={async e=>{e.preventDefault();await act('create_user',{email,display_name:displayName});setEmail('');setDisplayName('')}}><label className="field">Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="colleague@company.com"/></label><label className="field">Display name<input value={displayName} onChange={e=>setDisplayName(e.target.value)} required/></label><Button type="submit" disabled={busy||working}>Create user with temporary password</Button></form>
  <label className="field">Existing user<select value={target} onChange={e=>setTarget(e.target.value)}><option value="">Select an account</option>{data.profiles.map(pr=><option key={pr.id} value={pr.id}>{pr.display_name} ({pr.email})</option>)}</select></label><div className="admin-actions"><Button variant="outline" disabled={!target||working} onClick={()=>act('reset_temp_password',{user_id:target})}>Reset password</Button><Button variant="outline" disabled={!target||working} onClick={()=>act('disable_user',{user_id:target})}>Disable</Button><Button variant="outline" disabled={!target||working} onClick={()=>act('enable_user',{user_id:target})}>Reactivate</Button></div>
  {credential&&<div className="one-time-secret"><strong>Temporary password — shown once</strong><code>{credential.password}</code><small>Expires: {credential.expires||'Demo only'}</small><Button variant="outline" onClick={()=>{void navigator.clipboard.writeText(credential.password);setCredential(null)}}>Copy and hide</Button><button className="text-button" onClick={()=>setCredential(null)}>Hide now</button></div>}</section>
- <section className="admin-card"><h3>Manage the portfolio.</h3><label className="field">Deleted prompt retention (days)<input type="number" min={1} max={365} value={retention} onChange={e=>setRetention(Number(e.target.value))}/></label><label className="field">Temporary password validity (hours)<input type="number" min={1} max={168} value={hours} onChange={e=>setHours(Number(e.target.value))}/></label><Button disabled={busy} onClick={()=>executeAction('update_app_settings',{days:retention,password_hours:hours})}>Save settings</Button><div className="divider-line"/><p>Removing a team revokes its memberships and archives its existing prompts while keeping audit history.</p><div className="admin-team-actions">{data.teams.map(t=><div key={t.id}><strong>{t.name}</strong><Button variant="outline" disabled={busy} onClick={()=>{if(window.confirm(`Remove ${t.name}? Members will lose access and prompts will be archived.`))void executeAction('remove_team',{tid:t.id})}}>Remove team</Button></div>)}</div></section></div>
+ <section className="admin-card"><h3>Manage the portfolio.</h3><label className="field">Deleted prompt retention (days)<input type="number" min={1} max={365} value={retention} onChange={e=>setRetention(Number(e.target.value))}/></label><label className="field">Temporary password validity (hours)<input type="number" min={1} max={168} value={hours} onChange={e=>setHours(Number(e.target.value))}/></label><Button disabled={busy} onClick={()=>executeAction('update_app_settings',{days:retention,password_hours:hours})}>Save settings</Button><div className="divider-line"/><p>Removing a team revokes its memberships and archives its existing prompts while keeping audit history.</p><div className="admin-team-actions">{data.teams.map(t=><div key={t.id}><strong>{t.name}</strong><div className="admin-team-buttons"><Button variant="outline" disabled={busy} onClick={()=>onRenameTeam(t)}><Pencil size={14}/> Rename</Button><Button variant="outline" disabled={busy} onClick={()=>{if(window.confirm(`Remove ${t.name}? Members will lose access and prompts will be archived.`))void executeAction('remove_team',{tid:t.id})}}>Remove team</Button></div></div>)}</div></section></div>
 }
 
-function TeamCard({team,members,profiles,prompts,versions,manager,onMember}:{team:{id:string;name:string;description:string};members:Member[];profiles:AppData['profiles'];prompts:Prompt[];versions:PromptVersion[];manager:boolean;onMember:(email:string,action:'add'|'remove')=>Promise<void>}){
+function TeamCard({team,members,profiles,prompts,versions,manager,onRename,onMember}:{team:{id:string;name:string;description:string};members:Member[];profiles:AppData['profiles'];prompts:Prompt[];versions:PromptVersion[];manager:boolean;onRename:()=>void;onMember:(email:string,action:'add'|'remove')=>Promise<void>}){
   const [open,setOpen]=useState(false);const [email,setEmail]=useState('');
   const published=prompts.filter(p=>p.lifecycle==='published').length;
   const drafts=prompts.filter(p=>p.lifecycle==='draft').length;
@@ -672,7 +656,7 @@ function TeamCard({team,members,profiles,prompts,versions,manager,onMember}:{tea
   const categoryCounts=new Map<string,number>();
   for(const p of prompts){const v=versions.find(v=>v.id===p.official_version_id)||versions.find(v=>v.id===p.latest_version_id);const category=v?.category||'General';categoryCounts.set(category,(categoryCounts.get(category)||0)+1)}
   const categoriesByCount=[...categoryCounts.entries()].sort((a,b)=>b[1]-a[1]);
-  return <section className="team-card"><div className="team-card-header"><div className="team-icon"><Users size={21}/></div><div><h3>{team.name}</h3><p>{team.description}</p></div><Flag>{members.length} members</Flag></div>
+  return <section className="team-card"><div className="team-card-header"><div className="team-icon"><Users size={21}/></div><div><div className="team-name-row"><h3>{team.name}</h3>{manager&&<button type="button" className="team-rename-trigger" aria-label={`Rename ${team.name}`} title="Rename team" onClick={onRename}><Pencil size={15}/></button>}</div><p>{team.description}</p></div><Flag>{members.length} members</Flag></div>
   <div className="team-stats" aria-label={`${team.name} prompt statistics`}><div><strong>{prompts.length}</strong><span>Prompts</span></div><div><strong>{published}</strong><span>Published</span></div><div><strong>{drafts}</strong><span>Drafts</span></div><div><strong>{approved}</strong><span>Approved</span></div></div>
   <div className="team-category-section"><div className="team-section-title">Prompts by category</div>{categoriesByCount.length?<div className="team-categories">{categoriesByCount.map(([category,count])=><div className="team-category" key={category}><div className="team-category-label"><span>{category}</span><strong>{count}</strong></div><div className="team-category-track"><span style={{width:`${count/Math.max(prompts.length,1)*100}%`}}/></div></div>)}</div>:<p className="team-no-prompts">No prompts in this team yet.</p>}</div>
   <div className="team-section-title team-members-title">Members</div><div className="team-members">{members.map(m=>{const profile=profiles.find(p=>p.id===m.user_id);return <div className="member" key={m.user_id}><Avatar name={profile?.display_name||'Member'} small/><span><strong>{profile?.display_name||'Member'}</strong><small>{profile?.email||''}</small></span>{m.role==='manager'&&<Flag tone="violet">Manager</Flag>}{manager&&m.role!=='manager'&&<button title="Remove member" className="member-remove" onClick={()=>onMember(profile?.email||'','remove')}><X size={15}/></button>}</div>})}</div>{manager&&<><button className="add-member-toggle" onClick={()=>setOpen(s=>!s)}><Plus size={17}/> Add a team member</button>{open&&<form className="inline-form" onSubmit={async e=>{e.preventDefault();await onMember(email,'add');setEmail('');setOpen(false)}}><input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="colleague@company.com"/><Button type="submit">Add member</Button></form>}</>}</section>;

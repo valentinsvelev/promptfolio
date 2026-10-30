@@ -25,6 +25,15 @@ const body={title:'Example prompt',description:'Sample',content:'Analyse {{notes
  d=await api.loadData();assert.ok(d.prompts.find(p=>p.id===id).deleted_at);
  await api.execute('soft_delete_prompt',{pid:id,recover:true});
  await assert.rejects(api.execute('permanently_delete_prompt',{pid:id}),/Trash/);
+ // A Team Manager can rename a team, keeping its ID and prompts unchanged.
+ const operations = d.teams.find(t=>t.name==='Operations');
+ const originalTeamPromptId=d.prompts.find(p=>p.owner_team_id===operations.id).id;
+ await api.execute('rename_team',{tid:operations.id,new_name:'Operations & Support'});
+ d=await api.loadData();
+ assert.equal(d.teams.find(t=>t.id===operations.id).name,'Operations & Support');
+ assert.ok(d.prompts.some(p=>p.id===originalTeamPromptId&&p.owner_team_id===operations.id));
+ await assert.rejects(api.execute('rename_team',{tid:operations.id,new_name:' ' }),/between 2 and 80/);
+ await assert.rejects(api.execute('rename_team',{tid:operations.id,new_name:'Strategy'}),/already in use/);
  await api.execute('create_category',{category_name:'Legal'});
  d=await api.loadData();assert.ok(d.categories.some(c=>c.name==='Legal'));
  await api.execute('update_app_settings',{days:45,password_hours:24});
@@ -67,5 +76,13 @@ const body={title:'Example prompt',description:'Sample',content:'Analyse {{notes
  assert.ok(!d.versions.some(v=>v.prompt_id===teamPrompt.id));
  assert.ok(!d.proposals.some(pr=>pr.prompt_id===teamPrompt.id));
 
- console.log('PASS: demo CRUD, categories, copy suffix, team suggestions and permanent deletion');
+ // Server-side permission model must reject renames by non-managers.
+ const savedDemo=memory.get('promptfolio-react-demo-v3');
+ const unauthorised=JSON.parse(savedDemo);
+ unauthorised.admins=[];
+ unauthorised.members=unauthorised.members.map(m=>m.user_id===api.demoIdentity.id?{...m,role:'member'}:m);
+ memory.set('promptfolio-react-demo-v3',JSON.stringify(unauthorised));
+ await assert.rejects(api.execute('rename_team',{tid:operations.id,new_name:'Unauthorised'}),/Manager or administrator/);
+ memory.set('promptfolio-react-demo-v3',savedDemo);
+ console.log('PASS: demo CRUD, categories, copy suffix, team suggestions, permanent deletion and team rename permissions');
 })().catch(err=>{console.error(err);process.exitCode=1});

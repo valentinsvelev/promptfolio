@@ -207,6 +207,15 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
   } else if(name==='update_app_settings') {
     if(!d.admins.some(a=>a.user_id===currentId))throw Error('Admin required');
     d.settings=[{id:true,retention_days:Number(args.days),temporary_password_hours:Number(args.password_hours)}];
+  } else if(name==='rename_team') {
+    const teamId=String(args.tid||'');
+    if(!d.admins.some(a=>a.user_id===currentId)&&!manager(teamId))throw Error('Only a Team Manager or administrator can rename this team.');
+    const newName=String(args.new_name||'').trim();
+    if(newName.length<2||newName.length>80)throw Error('Team name must be between 2 and 80 characters.');
+    const team=d.teams.find(t=>t.id===teamId);
+    if(!team)throw Error('Team not found.');
+    if(d.teams.some(t=>t.id!==teamId&&t.name.toLowerCase()===newName.toLowerCase()))throw Error('That team name is already in use.');
+    team.name=newName;result=newName;
   } else if(name==='remove_team') {
     if(!d.admins.some(a=>a.user_id===currentId))throw Error('Admin required');
     const t=String(args.tid);d.teams=d.teams.filter(x=>x.id!==t);d.members=d.members.filter(x=>x.team_id!==t);
