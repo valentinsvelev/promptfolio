@@ -45,6 +45,21 @@ function createDemo(): AppData {
 function readDemo(): AppData { try { const s = localStorage.getItem(keyDemo); return s ? JSON.parse(s) as AppData : createDemo(); } catch { return createDemo(); } }
 function saveDemo(data: AppData) { localStorage.setItem(keyDemo, JSON.stringify(data)); }
 
+export async function submitGithubIssue(kind:'bug'|'enhancement',title:string,description:string):Promise<string> {
+  if(isDemo||!client)throw new Error('Sign in with a real Promptfolio account to submit GitHub feedback.');
+  const {data,error}=await client.functions.invoke('create-github-issue',{body:{kind,title,description}});
+  if(error){
+    // Supabase may expose the server's structured error via the response object.
+    const ctx=error.context as Response|undefined;
+    if(ctx && typeof ctx.json==='function'){
+      try {const body=await ctx.json() as {error?:string};if(body.error)throw new Error(body.error)}catch(e){if(e instanceof Error&&e.message!=="Unexpected end of JSON input")throw e}
+    }
+    throw new Error(error.message||'Could not create GitHub issue.');
+  }
+  if(!data || typeof data.url!=='string')throw new Error('GitHub returned no issue link.');
+  return data.url;
+}
+
 export async function identity(): Promise<Identity | null> {
   if(isDemo) return demoIdentity;
   const { data, error } = await client!.auth.getUser();
@@ -104,6 +119,25 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     const v=addVersion(record.id,args.payload as PromptBody,'experimental','Initial version');
     record.official_version_id=record.latest_version_id=v.id;
     result=record.id;
+  } else if(name==='save_personal_prompt_and_team') {
+    const prompt=p(args.pid),teamId=(args.target_team_id||null) as string|null;
+    if(!prompt||prompt.deleted_at||prompt.owner_user_id!==currentId||prompt.owner_team_id)throw Error('Only your own personal prompt can be transferred.');
+    if(teamId&&!member(teamId))throw Error('You must belong to the destination team.');
+    const body=args.payload as PromptBody;
+    const v=addVersion(prompt.id,body,'experimental',String(args.note||''));
+    prompt.latest_version_id=prompt.official_version_id=v.id;prompt.updated_at=now();
+    if(teamId){prompt.owner_user_id=null;prompt.owner_team_id=teamId;}
+    result=v.id;
+  } else if(name==='propose_improvement_with_team') {
+    const prompt=p(args.pid),teamId=args.target_team_id as string|null;
+    if(!prompt||!prompt.owner_team_id||prompt.deleted_at||!teamId)throw Error('Invalid team prompt.');
+    if(teamId!==prompt.owner_team_id&&!member(teamId))throw Error('You must be a member of the destination team.');
+    if(!member(prompt.owner_team_id) && (prompt.lifecycle!=='published'||!d.members.some(m=>m.user_id===currentId)))throw Error('You cannot suggest changes to this prompt.');
+    const proposal:Proposal={id:uuid(),prompt_id:prompt.id,author_id:currentId,proposed_content:args.payload as PromptBody,rationale:String(args.explanation||''),status:'open',created_at:now(),target_team_id:teamId!==prompt.owner_team_id?teamId:null};
+    d.proposals.push(proposal);
+    const proposedCategory=(args.payload as PromptBody).category;
+    if(proposedCategory&&!d.categories.some(c=>c.name.toLowerCase()===proposedCategory.toLowerCase()))d.categories.push({name:proposedCategory});
+    result=proposal.id;
   } else if(name==='save_prompt_version') {
     const prompt = p(args.pid);
     if(!canEdit(prompt) || prompt?.owner_team_id) throw Error('Team prompt changes must be suggested and approved by the owning team manager.');
@@ -139,7 +173,12 @@ export async function execute(name: string, args: Record<string, unknown>): Prom
     const prompt=proposal&&p(proposal.prompt_id);
     if(!proposal || !prompt || !manager(prompt.owner_team_id)) throw Error('Only the owning manager can review.');
     proposal.status=args.accept?'accepted':'rejected';proposal.decision_reason=String(args.reason||'');
-    if(args.accept) { const v=addVersion(prompt.id,proposal.proposed_content,'under_review','Accepted improvement proposal');prompt.latest_version_id=v.id;result=v.id; }
+    if(args.accept) {
+      if(proposal.target_team_id && proposal.target_team_id!==prompt.owner_team_id && !manager(proposal.target_team_id))
+        throw Error('Reviewer must manage both source and destination teams.');
+      const v=addVersion(prompt.id,proposal.proposed_content,'under_review','Accepted improvement proposal');prompt.latest_version_id=v.id;result=v.id;
+      if(proposal.target_team_id && proposal.target_team_id!==prompt.owner_team_id)prompt.owner_team_id=proposal.target_team_id;
+    }
   } else if(name==='copy_prompt' || name==='share_personal_prompt') {
     const prompt=p(args.pid); if(!prompt) throw Error('Prompt not found.');
     const source = d.versions.find(v=>v.id===prompt.official_version_id);

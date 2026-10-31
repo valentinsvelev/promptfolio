@@ -50,6 +50,7 @@ export type Proposal = {
   status: 'open' | 'under_review' | 'accepted' | 'rejected';
   created_at: string;
   decision_reason?: string;
+  target_team_id?: string | null;
 };
 export type Notice = { id: string; recipient_id: string; message: string; prompt_id?: string | null; read_at: string | null; created_at: string };
 export type Audit = { id: number; actor_id: string; team_id: string | null; prompt_id: string | null; event_type: string; description: string; created_at: string };

@@ -77,3 +77,34 @@ assert.match(css,/\.prompt-quick-filters\s*\{[^}]*overflow: visible/s);
 assert.doesNotMatch(css,/\.prompt-quick-filters\s*\{[^}]*overflow-x:\s*auto/s);
 
 console.log('PASS: direct category and team quick filters');
+
+// 011: Team assignment and GitHub feedback must be server-mediated.
+const apiSource=fs.readFileSync('src/api.ts','utf8');
+const migration011=fs.readFileSync('supabase/011_team_transfer_and_feedback.sql','utf8');
+const edgeSource=fs.readFileSync('supabase/functions/create-github-issue/index.ts','utf8');
+// Create, Edit and Suggest: Title / Category / Team, then Tags / AI models.
+assert.match(app,/editor-three-column-fields/);
+assert.match(app,/editor-secondary-fields/);
+const editorStart = app.indexOf('function PromptEditor(');
+const editorEnd = app.indexOf('function PromptRow(', editorStart);
+const editorSource = app.slice(editorStart, editorEnd);
+const firstRow = editorSource.slice(editorSource.indexOf('className="field-grid editor-primary-fields'), editorSource.indexOf('className="field-grid editor-secondary-fields'));
+const secondRow = editorSource.slice(editorSource.indexOf('className="field-grid editor-secondary-fields'), editorSource.indexOf('Prompt text <strong'));
+assert.ok(firstRow.indexOf('Prompt title') < firstRow.indexOf('Category') && firstRow.indexOf('Category') < firstRow.indexOf('Assign to team'), 'First row should be title, category, team');
+assert.ok(secondRow.indexOf('Tags') < secondRow.indexOf('Compatible AI models'), 'Second row should be tags then models');
+assert.equal((editorSource.match(/Assign to team<\/span>/g) || []).length, 1, 'All modes share one team select');
+assert.equal((editorSource.match(/Compatible AI models<\/span>/g) || []).length, 1, 'All modes share one AI models field');
+assert.match(css,/\.editor-primary-fields\.editor-three-column-fields/);
+assert.match(css,/--pf-scrollbar-thumb/);
+assert.match(app,/onAction\('draft'\)/);
+assert.match(app,/propose_improvement_with_team/);
+assert.match(app,/save_personal_prompt_and_team/);
+assert.match(app,/localeCompare\(official\(b\)\?\.title/);
+assert.match(app,/FeedbackDialog/);
+assert.match(apiSource,/client\.functions\.invoke\('create-github-issue'/);
+assert.match(migration011,/private\.is_manager\(pr\.target_team_id\)/);
+assert.match(migration011,/private\.is_member\(target_team_id\)/);
+assert.match(edgeSource,/auth\.auth\.getUser/);
+assert.match(edgeSource,/github_issue_feedback_limits/);
+assert.doesNotMatch(app,/GITHUB_ISSUES_TOKEN/);
+console.log('PASS: team transfer approvals, alphabetical lists and secure feedback wiring');

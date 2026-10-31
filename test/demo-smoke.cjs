@@ -60,6 +60,24 @@ const body={title:'Example prompt',description:'Sample',content:'Analyse {{notes
  const newId=await api.execute('review_improvement_proposal',{proposal_id:proposalId,accept:true,reason:''});
  await api.execute('review_prompt_version',{vid:newId,approve:true,reason:''});
  d=await api.loadData();assert.equal(d.prompts.find(p=>p.id===teamPrompt.id).official_version_id,newId);
+ // Personal prompt reassignment is atomic and keeps the same prompt ID.
+ const moveId=await api.execute('create_prompt',{payload:body,team_id:null,publish:true});
+ await api.execute('save_personal_prompt_and_team',{pid:moveId,payload:{...body,title:'Moved to Operations'},note:'Transfer',target_team_id:operations.id});
+ d=await api.loadData();
+ assert.equal(d.prompts.find(p=>p.id===moveId).owner_team_id,operations.id);
+ assert.equal(d.prompts.find(p=>p.id===moveId).owner_user_id,null);
+ // Transferring a team prompt requires a proposal, followed by managers' approval.
+ const targetId=await api.execute('create_team',{team_name:'Growth',team_description:'New team',first_manager:api.demoIdentity.id});
+ const transferId=await api.execute('propose_improvement_with_team',{pid:teamPrompt.id,payload:{...body,title:'New destination'},explanation:'Should move to Growth',target_team_id:targetId});
+ d=await api.loadData();assert.equal(d.prompts.find(p=>p.id===teamPrompt.id).owner_team_id,operations.id);
+ assert.equal(d.proposals.find(p=>p.id===transferId).target_team_id,targetId);
+ const transferVid=await api.execute('review_improvement_proposal',{proposal_id:transferId,accept:true,reason:''});
+ d=await api.loadData();assert.equal(d.prompts.find(p=>p.id===teamPrompt.id).owner_team_id,targetId);
+ await api.execute('review_prompt_version',{vid:transferVid,approve:true,reason:''});
+ // Move the prompt back to its original team so existing test fixture expectations remain valid.
+ const returnId=await api.execute('propose_improvement_with_team',{pid:teamPrompt.id,payload:body,explanation:'Move back',target_team_id:operations.id});
+ const returnVid=await api.execute('review_improvement_proposal',{proposal_id:returnId,accept:true,reason:''});
+ await api.execute('review_prompt_version',{vid:returnVid,approve:true,reason:''});
  // Hard-delete must require Trash, remove versions/proposals, and preserve independent copies.
  await assert.rejects(api.execute('permanently_delete_prompt',{pid:customId}),/Trash/);
  await api.execute('soft_delete_prompt',{pid:customId,recover:false});
