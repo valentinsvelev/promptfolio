@@ -184,7 +184,7 @@ function PromptEditor({editor,body,teams,categoryNames,existingTitles,onClose,on
   const title=editor.mode==='create'?'Create a prompt':editor.mode==='suggest'?'Suggest an improvement':'Edit prompt';
   async function submit(e:FormEvent){e.preventDefault();if(!draft.title.trim()||!draft.content.trim()){setError('A title and prompt text are required.');return}const category=customCategory?categoryInput.trim():draft.category;if(category.length<2||category.length>70){setError('Category must be between 2 and 70 characters.');return}setError('');await onSubmit({...draft,category,tags:tagsText.split(',').map(s=>s.trim().replace(/^#/,'')).filter(Boolean),compatible_models:modelsText.split(',').map(s=>s.trim()).filter(Boolean)},team||null,publish,note)}
   return <Modal onClose={onClose} wide><form className="editor" onSubmit={submit}>
-    <div className="modal-header editor-modal-header"><div className="editor-header-content"><h2>{title}</h2>{editor.mode!=='create'&&canManage&&<div className="editor-header-actions">{editor.prompt?.lifecycle!=='draft'&&<button type="button" onClick={()=>onAction('draft')} disabled={saving}>Move to draft</button>}{editor.prompt?.owner_user_id&&<button type="button" onClick={()=>onAction('share')} disabled={saving}>Share to team</button>}{editor.prompt?.lifecycle!=='archived'&&<button type="button" onClick={()=>onAction('archive')} disabled={saving}>Archive</button>}{canDeprecate&&<button type="button" onClick={()=>onAction('deprecate')} disabled={saving}>Deprecate</button>}<button type="button" className="danger-text" onClick={()=>onAction('trash')} disabled={saving}>Delete</button></div>}</div><button className="round-icon" type="button" aria-label="Close" onClick={onClose}><X size={20}/></button></div>
+    <div className="modal-header editor-modal-header"><div className="editor-header-content"><h2>{title}</h2>{editor.mode!=='create'&&canManage&&<div className="editor-header-actions">{editor.prompt?.lifecycle!=='draft'&&<button type="button" onClick={()=>onAction('draft')} disabled={saving}>Move to draft</button>}{editor.prompt?.owner_user_id&&<button type="button" onClick={()=>onAction('share')} disabled={saving}>Share to team</button>}{editor.prompt?.lifecycle!=='archived'&&<button type="button" onClick={()=>onAction('archive')} disabled={saving}>Archive</button>}{canDeprecate&&<button type="button" onClick={()=>onAction('deprecate')} disabled={saving}>Deprecate</button>}<button type="button" className="danger-text" onClick={()=>onAction('trash')} disabled={saving}>Move to trash</button></div>}</div><button className="round-icon" type="button" aria-label="Close" onClick={onClose}><X size={20}/></button></div>
     <div className="editor-scroll">
       <div className="field-grid editor-primary-fields editor-three-column-fields">
         <label className="field"><span className="field-label">Prompt title<strong className="required">*</strong></span><input autoFocus required maxLength={150} value={draft.title} onChange={e=>set('title',e.target.value)} placeholder="e.g. Summarise a customer interview"/></label>
@@ -210,7 +210,7 @@ function PromptEditor({editor,body,teams,categoryNames,existingTitles,onClose,on
       {similar.length>0&&editor.mode==='create'&&<p className="duplicate-hint"><Lightbulb size={15}/> Similar prompt already exists: {similar.join(', ')}. Check before duplicating.</p>}
       <div className="field-grid editor-secondary-fields">
         <label className="field"><span className="field-label">Tags <span className="hint">comma separated</span></span><input value={tagsText} onChange={e=>updateList('tags',e.target.value)} placeholder="writing, meetings"/></label>
-        <label className="field"><span className="field-label">Compatible AI models</span><input value={modelsText} onChange={e=>updateList('compatible_models',e.target.value)} placeholder="ChatGPT, Claude"/></label>
+        <label className="field"><span className="field-label">Compatible AI models <span className="hint">comma separated</span></span><input value={modelsText} onChange={e=>updateList('compatible_models',e.target.value)} placeholder="ChatGPT, Claude"/></label>
       </div>
 
     <label className="field"><span className="field-label">Prompt text <strong className="required">*</strong><span className="hint">Use # for headings, **bold** for emphasis, - for lists, and {'{{variable_name}}'} for fill-in fields.</span></span><textarea className="prompt-editor-textarea" required rows={9} value={draft.content} onChange={e=>set('content',e.target.value)} placeholder={'You are an expert at…\n\nReview {{document_text}} and return…'}/></label>
@@ -257,7 +257,7 @@ function PromptDetail({prompt,version,latest,history,owner,creator,lastEditor,ca
     <div className="author-line author-line-before-history"><Avatar name={creator} small/><span className="author-line-meta">{history.length>1?<><span>Created by: <strong>{creator}</strong></span><span className="meta-bullet">·</span><span>Last updated by: <strong>{lastEditor}</strong></span></>:<span>Created by: <strong>{creator}</strong></span>}</span></div>
     {canEdit&&<><button className="disclosure" onClick={()=>setHistoryOpen(x=>!x)}><FileClock size={17}/> Version history <span>{history.length}</span><ChevronDown size={16} className={historyOpen?'rotated':''}/></button>{historyOpen&&<div className="history-list">{history.map(v=><div className="history-item" key={v.id}><span><strong>Version {v.version_number}</strong><small>{v.change_note||'No change note'} · {when(v.created_at)}</small></span><span className="history-right"><button className="text-button" onClick={()=>onCompare(v.id)}>Compare</button><Flag tone={v.approval_status==='approved'?'green':v.approval_status==='under_review'?'amber':'neutral'}>{v.id===prompt.official_version_id?'Official · ':''}{v.approval_status.replace('_',' ')}</Flag>{v.id===latest?.id&&v.approval_status==='experimental'&&prompt.owner_team_id&&<button className="text-button" onClick={()=>onRequest(v.id)}>Request review</button>}</span></div>)}</div>}</>}
     <h3 className="detail-section-label detail-utilities-heading">Additional functionality</h3>
-    <div className="detail-utilities"><button type="button" onClick={()=>saveFile(`${sanitize(version.title)}.json`,JSON.stringify(exports,null,2),'application/json')}><ArrowUpRight size={14}/> Export JSON</button><button type="button" onClick={()=>saveFile(`${sanitize(version.title)}.md`,`# ${version.title}\n\n${version.description}\n\n${version.content}\n`,'text/markdown')}><ArrowUpRight size={14}/> Export Markdown</button>{!readOnly&&<button type="button" onClick={onDuplicate}><Clipboard size={14}/> Duplicate</button>}{canEdit&&(!prompt.owner_team_id||isManager)&&<><button onClick={onLifecycle}>{prompt.lifecycle==='draft'?'Publish':prompt.lifecycle==='published'?'Move to draft':'Republish'}</button>{!!prompt.owner_user_id&&<button onClick={onShare}>Share to team</button>}{prompt.lifecycle!=='archived'&&<button onClick={onArchive}>Archive</button>}{isManager&&prompt.owner_team_id&&<><button onClick={onRecommend}>{recommended?'Remove recommendation':'Recommend'}</button><button className="danger-text" onClick={onDeprecate}>Deprecate</button></>}{prompt.deleted_at?<button onClick={onRestore}>Restore</button>:<button className="danger-text" onClick={onDelete}>Delete</button>}</>}</div>
+    <div className="detail-utilities"><button type="button" onClick={()=>saveFile(`${sanitize(version.title)}.json`,JSON.stringify(exports,null,2),'application/json')}><ArrowUpRight size={14}/> Export JSON</button><button type="button" onClick={()=>saveFile(`${sanitize(version.title)}.md`,`# ${version.title}\n\n${version.description}\n\n${version.content}\n`,'text/markdown')}><ArrowUpRight size={14}/> Export Markdown</button>{!readOnly&&<button type="button" onClick={onDuplicate}><Clipboard size={14}/> Duplicate</button>}{canEdit&&(!prompt.owner_team_id||isManager)&&<><button onClick={onLifecycle}>{prompt.lifecycle==='draft'?'Publish':prompt.lifecycle==='published'?'Move to draft':'Republish'}</button>{!!prompt.owner_user_id&&<button onClick={onShare}>Share to team</button>}{prompt.lifecycle!=='archived'&&<button onClick={onArchive}>Archive</button>}{isManager&&prompt.owner_team_id&&<><button onClick={onRecommend}>{recommended?'Remove recommendation':'Recommend'}</button><button className="danger-text" onClick={onDeprecate}>Deprecate</button></>}{prompt.deleted_at?<button onClick={onRestore}>Restore</button>:<button className="danger-text" onClick={onDelete}>Move to trash</button>}</>}</div>
   </div></div>;
 }
 
@@ -431,21 +431,25 @@ export default function App(){
   // Quick filters use the exact same facet state as the advanced Filters dialog.
   // Derive choices from this tab's accessible prompts, before applying filters.
   const quickFilterType = view==='explore' && filter==='My teams' ? 'team'
-    : view==='explore' && (filter==='All prompts' || filter==='Personal') ? 'category' : null;
+    : view==='explore' && (filter==='All prompts' || filter==='Personal' || filter==='Favorites') ? 'category' : null;
   const quickFilterBase = filter==='Personal' ? accessible.filter(p=>p.owner_user_id===user?.id)
-    : filter==='My teams' ? accessible.filter(p=>isMember(p.owner_team_id)) : accessible;
-  // Show only quick-filter choices backed by an accessible prompt in this tab.
-  // The options are derived before applying search/facets, so selecting a chip
-  // never makes the other populated choices disappear.
+    : filter==='My teams' ? accessible.filter(p=>isMember(p.owner_team_id))
+    : filter==='Favorites' ? accessible.filter(p=>data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===p.id))
+    : accessible;
+  // Show only choices backed by accessible prompts in this tab. Compute these
+  // before applying search/facets so choosing one never hides other options.
+  const categoryOptions=(prompts:Prompt[])=>[...new Set(prompts.map(p=>official(p)?.category)
+    .filter((v):v is string=>!!v))].sort((a,b)=>a.localeCompare(b)).map(value=>({value,label:value}));
   const quickFilterOptions = quickFilterType==='team'
     ? ownTeamList.filter(t=>quickFilterBase.some(p=>p.owner_team_id===t.id))
         .map(t=>({value:t.id,label:t.name}))
         .sort((a,b)=>a.label.localeCompare(b.label))
-    : quickFilterType==='category'
-      ? [...new Set(quickFilterBase.map(p=>official(p)?.category)
-          .filter((v):v is string=>!!v))]
-          .sort((a,b)=>a.localeCompare(b)).map(value=>({value,label:value}))
-      : [];
+    : quickFilterType==='category' ? categoryOptions(quickFilterBase) : [];
+  // A second quick-select row appears only after choosing a team. It lists
+  // categories belonging to that team, not categories from other teams.
+  const selectedTeamCategories = quickFilterType==='team' && facets.team &&
+    ownTeamList.some(t=>t.id===facets.team)
+      ? categoryOptions(quickFilterBase.filter(p=>p.owner_team_id===facets.team)) : [];
   const selected=selectedId?searchable.find(p=>p.id===selectedId)||null:null;
   const selectedVersion=selected?official(selected):undefined;
   const selectedLatest=selected?data.versions.find(v=>v.id===selected.latest_version_id):undefined;
@@ -454,7 +458,11 @@ export default function App(){
   const hasExplore=view==='explore'||view==='mine';
   const blocked=data.account_controls.find(c=>c.user_id===user?.id);
   const categoryNames=data.categories.map(c=>c.name);
-  const facet=(k:keyof typeof facets,v:string)=>{setFacets(f=>({...f,[k]:v}));setSelectedId(null)};
+  const facet=(k:keyof typeof facets,v:string)=>{
+    setFacets(f=>k==='team'&&view==='explore'&&filter==='My teams'&&f.team!==v
+      ? {...f,team:v,category:''} : {...f,[k]:v});
+    setSelectedId(null);
+  };
   // Shared by the manual-search card and the existing Filters dialog.
   const filterControls=<div className="advanced-filters"><label>Team<select value={facets.team} onChange={e=>facet('team',e.target.value)}><option value="">Any team</option>{data.teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><label>Owner<select value={facets.owner} onChange={e=>facet('owner',e.target.value)}><option value="">Any owner</option>{data.profiles.map(pr=><option key={pr.id} value={pr.id}>{pr.display_name}</option>)}</select></label><label>Category<select value={facets.category} onChange={e=>facet('category',e.target.value)}><option value="">Any category</option>{categoryNames.map(c=><option key={c}>{c}</option>)}</select></label><label>Tag<select value={facets.tag} onChange={e=>facet('tag',e.target.value)}><option value="">Any tag</option>{[...new Set(data.versions.flatMap(v=>v.tags))].sort().map(t=><option key={t}>{t}</option>)}</select></label><label>Lifecycle<select value={facets.lifecycle} onChange={e=>facet('lifecycle',e.target.value)}><option value="">Any status</option>{['draft','published','archived'].map(v=><option key={v}>{v}</option>)}</select></label><label>Approval<select value={facets.approval} onChange={e=>facet('approval',e.target.value)}><option value="">Any approval</option>{['experimental','under_review','approved','deprecated'].map(v=><option key={v}>{v}</option>)}</select></label><label>Updated after<input type="date" value={facets.updated} onChange={e=>facet('updated',e.target.value)}/></label><label className="check-filter"><input type="checkbox" checked={recommendOnly} onChange={e=>setRecommendOnly(e.target.checked)}/> Manager recommended</label></div>;
   async function submitEditor(payload:PromptBody,teamId:string|null,publish:boolean,note:string){
@@ -484,7 +492,7 @@ export default function App(){
       }
     });
   }
-  function askDelete(p:Prompt){setConfirm({title:'Move prompt to trash?',description:'This prompt will be hidden from your library. You can restore it during the retention period.',confirm:'Delete',run:async()=>{await doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:false}),'Prompt moved to trash.');setConfirm(null)}})}
+  function askDelete(p:Prompt){setConfirm({title:'Move prompt to trash?',description:'This prompt will be hidden from your library. You can restore it during the retention period.',confirm:'Move to trash',run:async()=>{await doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:false}),'Prompt moved to trash.');setConfirm(null)}})}
   function askReview(item:ReviewItem,approve:boolean){const reason=reviewReason[item.record.id]||'';
     if(!approve&&reason.trim().length<3){notify('Please provide a rejection reason (at least 3 characters).');return;}
     setConfirm({title:approve?'Approve these changes?':'Reject this submission?',description:approve?'The decision will be recorded. Version approvals replace the official prompt; accepted improvement proposals enter version review.':'The author will be notified and the decision saved.',confirm:approve?'Approve':'Reject',run:async()=>{await doAction(()=>item.kind==='version'?execute('review_prompt_version',{vid:item.record.id,approve,reason}):execute('review_improvement_proposal',{proposal_id:item.record.id,accept:approve,reason}),approve?'Review completed.':'Submission rejected.');setConfirm(null)}});
@@ -574,7 +582,12 @@ export default function App(){
     <span className="results-count" role="status">{searchable.length} {searchable.length===1?'result':'results'}</span>
     <div className="prompt-toolbar" role="toolbar" aria-label="Prompt actions">
       {quickFilterType&&quickFilterOptions.length>0&&<div className="prompt-quick-filters" role="group" aria-label={quickFilterType==='team'?'Quick team filters':'Quick category filters'}>
-        {quickFilterOptions.map(option=>{const selectedValue=facets[quickFilterType]===option.value;return <button key={option.value} type="button" className={`prompt-quick-filter ${selectedValue?'is-active':''}`} aria-pressed={selectedValue} title={`${selectedValue?'Clear':'Show'} ${quickFilterType}: ${option.label}`} onClick={()=>facet(quickFilterType,selectedValue?'':option.value)}>{option.label}</button>})}
+        <div className="prompt-quick-filter-row" role="group" aria-label={quickFilterType==='team'?'Select a team':'Select a category'}>
+          {quickFilterOptions.map(option=>{const selectedValue=facets[quickFilterType]===option.value;return <button key={option.value} type="button" className={`prompt-quick-filter ${selectedValue?'is-active':''}`} aria-pressed={selectedValue} title={`${selectedValue?'Clear':'Show'} ${quickFilterType}: ${option.label}`} onClick={()=>facet(quickFilterType,selectedValue?'':option.value)}>{option.label}</button>})}
+        </div>
+        {selectedTeamCategories.length>0&&<div className="prompt-quick-filter-row prompt-quick-filter-subcategories" role="group" aria-label="Categories in selected team">
+          {selectedTeamCategories.map(option=>{const isSelected=facets.category===option.value;return <button key={option.value} type="button" className={`prompt-quick-filter ${isSelected?'is-active':''}`} aria-pressed={isSelected} title={`${isSelected?'Clear':'Show'} category: ${option.label}`} onClick={()=>facet('category',isSelected?'':option.value)}>{option.label}</button>})}
+        </div>}
       </div>}
       <div className="prompt-toolbar-actions" role="group" aria-label="Filter, search, view and export actions">
       <button type="button" className={`prompt-toolbar-button ${advancedOpen?'is-open':''}`} data-tooltip="Filters" aria-label="Filters" aria-haspopup="dialog" aria-expanded={advancedOpen} onClick={()=>{setSearchExpanded(false);setAdvancedOpen(true)}}><SlidersHorizontal size={16}/>{Object.values(facets).filter(Boolean).length+(recommendOnly?1:0)>0&&<span className="active-filter-count">{Object.values(facets).filter(Boolean).length+(recommendOnly?1:0)}</span>}</button>

@@ -34,8 +34,30 @@ Deno.serve(async req => {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: controls, error: controlError } = await admin.from('account_controls')
     .select('disabled,must_change_password').eq('user_id', user.id).maybeSingle();
-  if (controlError || controls?.disabled || controls?.must_change_password)
-    return respond(403, { error: 'Your account is not permitted to submit feedback.' });
+  if (controlError) {
+    console.error('Account controls lookup failed:', {
+      code: controlError.code,
+      message: controlError.message,
+    });
+
+    return respond(503, {
+      error: 'Could not verify account permissions. Check function logs.'
+    });
+  }
+
+  if (controls?.disabled || controls?.must_change_password) {
+    return respond(403, {
+      error: 'Your account is not permitted to submit feedback.'
+    });
+  }
+  // extract user's first name
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .select('display_name')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (profileError) {console.error('Profile lookup failed:', profileError.message);}
+  const firstName = profile?.display_name?.trim().split(/\s+/)[0] || 'Unknown';
   let input: { kind?: unknown; title?: unknown; description?: unknown };
   try { input = await req.json() } catch { return respond(400, { error: 'Invalid request.' }) }
   const kind = input.kind === 'bug' ? 'bug' : input.kind === 'enhancement' ? 'enhancement' : null;
@@ -43,22 +65,45 @@ Deno.serve(async req => {
   const description = typeof input.description === 'string' ? input.description.trim() : '';
   if (!kind || title.length < 5 || title.length > 120 || description.length < 15 || description.length > 4000)
     return respond(400, { error: 'Enter a valid feedback type, title and description.' });
-
-  const slot = new Date(Math.floor(Date.now() / 1_200_000) * 1_200_000).toISOString();
+  // time-out between creating GitHub Issues entries
+  const slot = new Date(Math.floor(Date.now() / 300_000) * 300_000).toISOString(); // time in milliseconds
   const { error: reserved } = await admin.from('github_issue_feedback_limits').insert({ user_id: user.id, bucket_start: slot });
-  if (reserved) return respond(429, { error: 'Please wait before sending another report (limit: one every 20 minutes).' });
-  const text = [description, '---', `Submitted through Promptfolio (${kind})`].join('\n\n');
+  if (reserved) return respond(429, { error: 'Please wait before sending another report (limit: one every 5 minutes).' });
+  // creating entry
+  const issueType = kind === 'bug' ? 'Bug report' : 'Feature suggestion';
+  const issueTitle = `[${kind === 'bug' ? 'Bug' : 'Feature'}] ${title}`;
+  const text = [
+    '## Description',
+    '',
+    description,
+    '',
+    '## Details',
+    '',
+    `**Submitted by:** ${firstName}`,
+    '',
+    `**Type:** ${issueType}`,
+    '',
+    '**Source:** Promptfolio',
+    '',
+    '---',
+    '',
+    '*Automatically submitted via Promptfolio*'
+  ].join('\n');
   let created: Response;
   try {
     created = await fetch(`https://api.github.com/repos/${repository}/issues`, {
-      method: 'POST', headers: {
+      method: 'POST', 
+      headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
         'Content-Type': 'application/json',
         'User-Agent': 'Promptfolio-feedback',
       },
-      body: JSON.stringify({ title: `[Promptfolio ${kind === 'bug' ? 'bug' : 'idea'}] ${title}`, body: text }),
+      body: JSON.stringify({
+        title: issueTitle,
+        body: text
+      }),
     });
   } catch { created = new Response(null, { status: 502 }) }
   if (!created.ok) {

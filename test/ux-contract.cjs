@@ -70,7 +70,8 @@ assert.match(css,/html\[data-theme='dark'\] \.prompt-quick-filter/);
 // Quick-select chips must represent categories/teams with visible prompts.
 // Do not show an empty team or an unused configured category.
 assert.match(app,/ownTeamList\.filter\(t=>quickFilterBase\.some\(p=>p\.owner_team_id===t\.id\)\)/);
-assert.match(app,/quickFilterBase\.map\(p=>official\(p\)\?\.category\)/);
+assert.match(app,/const categoryOptions=\(prompts:Prompt\[\]\)=>/);
+assert.match(app,/prompts\.map\(p=>official\(p\)\?\.category\)/);
 assert.doesNotMatch(app,/\.\.\.data\.categories\.map\(c=>c\.name\)/);
 assert.match(css,/\.prompt-quick-filters\s*\{[^}]*flex-wrap: wrap/s);
 assert.match(css,/\.prompt-quick-filters\s*\{[^}]*overflow: visible/s);
@@ -93,7 +94,7 @@ const secondRow = editorSource.slice(editorSource.indexOf('className="field-grid
 assert.ok(firstRow.indexOf('Prompt title') < firstRow.indexOf('Category') && firstRow.indexOf('Category') < firstRow.indexOf('Assign to team'), 'First row should be title, category, team');
 assert.ok(secondRow.indexOf('Tags') < secondRow.indexOf('Compatible AI models'), 'Second row should be tags then models');
 assert.equal((editorSource.match(/Assign to team<\/span>/g) || []).length, 1, 'All modes share one team select');
-assert.equal((editorSource.match(/Compatible AI models<\/span>/g) || []).length, 1, 'All modes share one AI models field');
+assert.equal((secondRow.match(/Compatible AI models/g) || []).length, 1, 'All modes share one AI models field');
 assert.match(css,/\.editor-primary-fields\.editor-three-column-fields/);
 assert.match(css,/--pf-scrollbar-thumb/);
 assert.match(app,/onAction\('draft'\)/);
@@ -108,3 +109,17 @@ assert.match(edgeSource,/auth\.auth\.getUser/);
 assert.match(edgeSource,/github_issue_feedback_limits/);
 assert.doesNotMatch(app,/GITHUB_ISSUES_TOKEN/);
 console.log('PASS: team transfer approvals, alphabetical lists and secure feedback wiring');
+
+// Favorites is a category-filtered library, and My teams supports a second,
+// team-scoped category row without showing categories from unrelated teams.
+assert.match(app,/filter==='All prompts' \|\| filter==='Personal' \|\| filter==='Favorites'/);
+assert.match(app,/filter==='Favorites' \? accessible\.filter\(p=>data\.favorites\.some\(f=>f\.user_id===user\?\.id&&f\.prompt_id===p\.id\)\)/);
+assert.match(app,/const selectedTeamCategories = quickFilterType==='team' && facets\.team/);
+assert.match(app,/quickFilterBase\.filter\(p=>p\.owner_team_id===facets\.team\)/);
+assert.match(app,/aria-label="Categories in selected team"/);
+assert.match(app,/onClick=\{\(\)=>facet\('category',isSelected\?'':option\.value\)\}/);
+assert.match(app,/k==='team'&&view==='explore'&&filter==='My teams'&&f\.team!==v/);
+assert.match(app,/\.\.\.f,team:v,category:''/);
+assert.match(css,/\.prompt-quick-filter-row\s*\{/);
+assert.match(css,/\.prompt-quick-filter-subcategories\s*\{/);
+console.log('PASS: Favorites categories and team-scoped secondary quick filters');
