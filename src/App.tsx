@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type FormEvent, type ReactNode } from 'react';
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, Bell, BookOpen, Check, CheckCircle2, ChevronDown,
-  ChevronRight, Clipboard, Clock3, Copy, Download, FileClock, FileText, FolderClosed, Heart, Pencil,
-  LayoutGrid, Lightbulb, List, LockKeyhole, LogOut, Menu, MoreHorizontal, Plus, RotateCcw,
+  ChevronRight, Clipboard, ClipboardPlus, Clock3, Copy, Download, FileClock, FileText, FolderClosed, Heart, Pencil,
+  LayoutGrid, Lightbulb, List, LockKeyhole, LogOut, Mail, Menu, MoreHorizontal, Plus, RotateCcw,
   Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Sun, Moon, Tag, Trash2, Users, MessageSquarePlus,
   X, type LucideIcon,
 } from 'lucide-react';
 import {accountAdmin, changePassword, client, demoIdentity, execute, favorite, guestSampleData, identity, isDemo, loadData, loadLikeCounts, resetPassword, signIn, signOut, signUp, updateDisplayName, loadListifyPreference, saveListifyPreference, submitGithubIssue, updatePassword} from './api';
 import {blankBody, emptyData, type AppData, type Filter, type Identity, type Member, type Prompt, type PromptBody, type PromptVersion, type Proposal, type ReviewItem, type View} from './types';
 import packageInfo from '../package.json';
+import {changelog} from './changelog';
+import {accessRequestMailto, combineClipboardText, isEmailAddress} from './sharing';
+import {generatePromptEmail, type GeneratedPromptEmail, type PromptEmailTemplate, type PromptEmailTone} from './emailTemplates';
 
 // Injected by Vite for both local development and GitHub Pages builds.
 declare const __PROMPTFOLIO_BUILD_DATE__: string;
@@ -97,6 +100,20 @@ function AccountSettings({name,email,statistics,onSaveName,onSavePassword,onClos
   </Modal>;
 }
 
+
+function ChangelogPage({onBack}:{onBack:()=>void}){
+  return <section className="changelog-page" aria-label="Promptfolio changelog">
+    <div className="changelog-topline"><Button type="button" variant="outline" onClick={onBack}><ArrowLeft size={15}/> Back to library</Button><span>Current version: v{packageInfo.version}</span></div>
+    <div className="changelog-timeline">
+      {changelog.map(entry=><article className={`changelog-release ${entry.status==='development'?'is-development':''}`} key={entry.version}>
+        <div className="changelog-release-meta"><span className="changelog-version">v{entry.version}</span><span className={`changelog-status ${entry.status==='development'?'is-development':''}`}>{entry.status==='development'?'Development':'Release'}</span>{entry.date&&<time dateTime={entry.date}>{when(entry.date+'T12:00:00Z')}</time>}</div>
+        <h2>{entry.title}</h2>
+        <ul>{entry.changes.map(change=><li key={change}>{change}</li>)}</ul>
+      </article>)}
+    </div>
+  </section>;
+}
+
 function RenameTeamDialog({team,onClose,onSave}:{team:{id:string;name:string};onClose:()=>void;onSave:(name:string)=>Promise<boolean>}){
   const [name,setName]=useState(team.name);
   const [saving,setSaving]=useState(false);
@@ -147,6 +164,10 @@ function FeedbackDialog({onClose,onSubmitted}:{onClose:()=>void;onSubmitted:(url
 }
 
 function Auth({onLogin,onGuest,onDemo,busy,message,onNotice}:{onLogin:(u:Identity)=>void;onGuest:()=>void;onDemo:()=>void;busy:boolean;message:(s:string)=>void;onNotice:(s:string)=>void}){
+  const sharedLink = new URLSearchParams(window.location.search);
+  const sharedPromptId = sharedLink.get('prompt');
+  const sharedFrom = sharedLink.get('from') || '';
+  const accessContact = isEmailAddress(sharedFrom) ? sharedFrom : null;
   const [mode,setMode]=useState<'login'|'signup'|'reset'|'update'>('login');
   const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [name,setName]=useState('');
   const [working,setWorking]=useState(false);
@@ -159,6 +180,9 @@ function Auth({onLogin,onGuest,onDemo,busy,message,onNotice}:{onLogin:(u:Identit
   }catch(err){message(err instanceof Error?err.message:'Unable to sign in.')}finally{setWorking(false)}}
   return <div className="auth-layout">
   <div className="auth-card"><div className="auth-mini-brand"><Logo/></div><h2>{mode==='login'?'Sign in to continue':mode==='signup'?'Create your account':mode==='reset'?'Reset your password':'Choose a new password'}</h2><p className="auth-sub">{mode==='login'?'Your prompt portfolio is a sign-in away.':mode==='signup'?'Registration is invite-only. Use an approved email address.':'We’ll help you get back to your prompts.'}</p>
+  {sharedPromptId&&<div className="auth-share-access"><strong>A prompt was shared with you.</strong><p>Sign in to view it. Your account also needs permission to access the prompt's library.</p>
+    {accessContact&&<a href={accessRequestMailto(accessContact,'a shared prompt')}>Request access by email <ArrowUpRight size={13}/></a>}
+  </div>}
   <form onSubmit={submit} className="auth-form">{mode==='signup'&&<label>Full name<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Alex Morgan"/></label>}{mode!=='update'&&<label>Work email<input type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com"/></label>}{mode!=='reset'&&<label>Password<input type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength={6} required value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 6 characters"/></label>}
   <Button type="submit" disabled={working||busy}>{working?'One moment…':mode==='login'?'Sign in':mode==='signup'?'Create account':mode==='reset'?'Send reset link':'Update password'} <ArrowRight size={16}/></Button></form>
   <div className="auth-links"><button onClick={()=>setMode(mode==='login'?'signup':'login')}>{mode==='login'?'New here? Create an account':'Back to sign in'}</button>{mode==='login'&&!isDemo&&<button onClick={()=>setMode('reset')}>Forgot password?</button>}</div><div className="guest-choice">{isDemo&&<button type="button" className="demo-entry" onClick={onDemo}><Sparkles size={15}/> Try the full demo workspace</button>}<span>or</span><button type="button" className="guest-button" onClick={onGuest}><BookOpen size={16}/> Continue as guest <ArrowRight size={15}/></button><p>Preview sample prompts without an account. Guest access is view-only; company libraries remain private.</p></div></div></div>;
@@ -225,27 +249,123 @@ function PromptEditor({editor,body,teams,categoryNames,existingTitles,onClose,on
   </form></Modal>;
 }
 
-function PromptRow({prompt,version,active,onSelect,onCopy,onDoubleClick,owner,likes,listified}:{prompt:Prompt;version:PromptVersion;active:boolean;onSelect:()=>void;onCopy:()=>void;onDoubleClick:()=>void;owner:string;likes:number;listified:boolean}){
+function PromptRow({prompt,version,active,onSelect,onCopy,onCombine,onDoubleClick,owner,likes,listified}:{prompt:Prompt;version:PromptVersion;active:boolean;onSelect:()=>void;onCopy:()=>void;onCombine:()=>void;onDoubleClick:()=>void;owner:string;likes:number;listified:boolean}){
   return <div className={`prompt-row-shell ${listified?'prompt-row-shell-listified':''}`}>
     {listified?<button type="button" className={`prompt-row prompt-row-listified ${active?'is-active':''}`} onClick={onSelect} onDoubleClick={onDoubleClick} aria-label={`Open ${version.title}`}><span className="row-listify-body"><strong className="row-title">{version.title}</strong><span className="row-listify-updated">Last updated: {when(prompt.updated_at)}</span></span></button>
       :<button type="button" className={`prompt-row ${active?'is-active':''}`} onClick={onSelect} onDoubleClick={onDoubleClick}><IconTile category={version.category}/><span className="row-body"><span className="row-caps">{version.category}<span className="caps-dot">·</span>{owner}</span><strong className="row-title">{version.title}</strong><span className="row-description">{version.description||'A ready-to-use prompt shared with the library.'}</span><span className="row-byline">{when(prompt.updated_at)}<span className="row-likes" aria-label={`${likes} likes`}><Heart size={13}/>{likes}</span></span></span><ChevronRight size={18} className="row-arrow"/></button>}
-    <button type="button" className="row-copy-button" aria-label={`Copy ${version.title} to clipboard`} title="Copy prompt text" onClick={onCopy}><Copy size={15}/></button>
+    <div className="row-clipboard-actions"><button type="button" className="row-copy-button" aria-label={`Copy ${version.title} to clipboard`} title="Copy prompt text" onClick={onCopy}><Copy size={15}/></button>
+      <button type="button" className="row-combine-button" aria-label={`Combine ${version.title} with clipboard`} title="Combine to Clipboard" onClick={onCombine}><ClipboardPlus size={15}/></button></div>
   </div>;
 }
 
-function PromptDetail({prompt,version,latest,history,owner,creator,lastEditor,canEdit,canSuggest,saved,onFavorite,onDuplicate,onEdit,onSuggest,onLifecycle,onDelete,onShare,onRequest,onRestore,onArchive,onCompare,onDeprecate,onRecommend,recommended,isManager,readOnly,onClose}:{
+function SharePromptEmailDialog({prompt,version,versions,senderEmail,senderName,onClose}:{
+  prompt:Prompt;version:PromptVersion;versions:PromptVersion[];senderEmail:string;senderName:string;onClose:()=>void;
+}){
+  const [recipientName,setRecipientName]=useState('');
+  const [tone,setTone]=useState<PromptEmailTone>('formal');
+  const [template,setTemplate]=useState<PromptEmailTemplate>('share');
+  const [versionId,setVersionId]=useState(version.id);
+  const [draft,setDraft]=useState<GeneratedPromptEmail|null>(null);
+  const [isOutdated,setIsOutdated]=useState(false);
+  const [error,setError]=useState('');
+  const [status,setStatus]=useState('');
+  const chosenVersion=versions.find(v=>v.id===versionId)||version;
+
+  function changeOptions(){
+    setStatus('');
+    setError('');
+    setIsOutdated(current=>current||!!draft);
+  }
+
+  function generatePreview(){
+    setError('');
+    setStatus('');
+    try{
+      const link=new URL(import.meta.env.BASE_URL,window.location.origin);
+      link.searchParams.set('prompt',prompt.id);
+      link.searchParams.set('from',senderEmail);
+      setDraft(generatePromptEmail({
+        recipientName,tone,template,title:chosenVersion.title,
+        description:chosenVersion.description,content:chosenVersion.content,
+        versionNumber:chosenVersion.version_number,
+        officialVersionNumber:version.version_number,
+        promptUrl:link.toString(),senderName,
+      }));
+      setIsOutdated(false);
+    }catch(err){setError(err instanceof Error?err.message:'Could not generate the preview.');}
+  }
+
+  async function copyDraft(){
+    if(!draft||!draft.body.trim())return;
+    setError('');setStatus('');
+    try{
+      await navigator.clipboard.writeText(draft.body);
+      setStatus('Email text copied to the clipboard.');
+    }catch{
+      setError('Clipboard access was blocked. Select the email message above and copy it manually.');
+    }
+  }
+
+  const previewState=isOutdated?'outdated':draft?'ready':'idle';
+  return <Modal onClose={onClose} wide>
+    <section className="share-email-dialog" aria-label="Generate email for prompt">
+      <div className="modal-header"><div><h2>Generate an email for the selected prompt</h2></div><button type="button" className="round-icon" aria-label="Close email generator" onClick={onClose}><X size={19}/></button></div>
+      <div className="share-email-body">
+        <div className="share-email-control-row">
+          <label className="field">Recipient name
+            <input autoFocus type="text" value={recipientName} onChange={e=>{setRecipientName(e.target.value);changeOptions()}} maxLength={100} placeholder="e.g. Alex" autoComplete="off"/>
+          </label>
+          <div className="field share-email-tone-field"><span>Tone</span><div className="share-email-tone" role="group" aria-label="Email tone">
+            <button type="button" aria-pressed={tone==='formal'} className={tone==='formal'?'is-selected':''} onClick={()=>{setTone('formal');changeOptions()}}>Formal</button>
+            <button type="button" aria-pressed={tone==='casual'} className={tone==='casual'?'is-selected':''} onClick={()=>{setTone('casual');changeOptions()}}>Casual</button>
+          </div></div>
+          <label className="field">Prompt version
+            <select value={versionId} onChange={e=>{setVersionId(e.target.value);changeOptions()}}>
+              {versions.map(v=><option value={v.id} key={v.id}>Version {v.version_number}{v.id===prompt.official_version_id?' · official':''}</option>)}
+            </select>
+          </label>
+          <div className="field share-email-preview-field"><span>Preview</span>
+            {previewState==='outdated'
+              ? <button type="button" className="share-email-refresh-button" onClick={generatePreview} disabled={!recipientName.trim()} title="Refresh preview" aria-label="Refresh preview"><RotateCcw size={16}/> Refresh preview</button>
+              : <button type="button" className={`share-email-preview-trigger ${previewState==='ready'?'is-active':''}`} title="Generate email preview" aria-label={previewState==='ready'?'Email preview generated':'Generate email preview'} onClick={generatePreview} disabled={!recipientName.trim()}><Check size={21}/></button>}
+          </div>
+        </div>
+        <div className="field share-email-template-field"><span>Template</span><div className="share-email-template-options" role="group" aria-label="Email template">
+          <button type="button" className={template==='share'?'is-selected':''} aria-pressed={template==='share'} onClick={()=>{setTemplate('share');changeOptions()}}>Share a prompt</button>
+          <button type="button" className={template==='feedback'?'is-selected':''} aria-pressed={template==='feedback'} onClick={()=>{setTemplate('feedback');changeOptions()}}>Ask for feedback</button>
+          <button type="button" className={template==='collaborate'?'is-selected':''} aria-pressed={template==='collaborate'} onClick={()=>{setTemplate('collaborate');changeOptions()}}>Invite to collaborate</button>
+        </div></div>
+        {draft&&<div className="share-email-editable">
+          {isOutdated&&<p className="share-email-outdated" role="status">Your options changed. Refresh the preview to update the email while keeping your current edits visible until then.</p>}
+          <label className="field">Email message<textarea rows={12} value={draft.body} onChange={e=>{setDraft(old=>old?{...old,body:e.target.value}:old);setStatus('')}} aria-label="Edit email message"/></label>
+        </div>}
+        {status&&<p className="share-email-status" role="status"><CheckCircle2 size={16}/>{status}</p>}
+        {error&&<p className="form-error" role="alert">{error}</p>}
+      </div>
+      <div className="modal-footer share-email-footer"><Button type="button" disabled={!draft||!draft.body.trim()} onClick={()=>void copyDraft()}><Copy size={16}/> Copy to Clipboard</Button></div>
+    </section>
+  </Modal>;
+}
+
+function PromptDetail({prompt,version,latest,history,owner,creator,lastEditor,canEdit,canSuggest,saved,onFavorite,onDuplicate,onShareEmail,onEdit,onSuggest,onLifecycle,onDelete,onShare,onRequest,onRestore,onArchive,onCompare,onDeprecate,onRecommend,recommended,isManager,readOnly,onClose}:{
   prompt:Prompt;version:PromptVersion;latest:PromptVersion|undefined;history:PromptVersion[];owner:string;creator:string;lastEditor:string;canEdit:boolean;canSuggest:boolean;saved:boolean;
-  onFavorite:()=>void;onDuplicate:()=>void;onEdit:()=>void;onSuggest:()=>void;onLifecycle:()=>void;onDelete:()=>void;onShare:()=>void;onRequest:(id:string)=>void;onRestore:()=>void;onArchive:()=>void;onCompare:(id:string)=>void;onDeprecate:()=>void;onRecommend:()=>void;recommended:boolean;isManager:boolean;readOnly:boolean;onClose:()=>void;
+  onFavorite:()=>void;onDuplicate:()=>void;onShareEmail:()=>void;onEdit:()=>void;onSuggest:()=>void;onLifecycle:()=>void;onDelete:()=>void;onShare:()=>void;onRequest:(id:string)=>void;onRestore:()=>void;onArchive:()=>void;onCompare:(id:string)=>void;onDeprecate:()=>void;onRecommend:()=>void;recommended:boolean;isManager:boolean;readOnly:boolean;onClose:()=>void;
 }){
   const [variables,setVariables]=useState<Record<string,string>>({});const [copied,setCopied]=useState(false);const [historyOpen,setHistoryOpen]=useState(false);
   const variableNames=varsIn(version.content);
   const pending=!!latest && latest.id!==version.id && latest.approval_status==='under_review';
   async function copyPrompt(){let output=version.content;for(const [k,v] of Object.entries(variables))if(v.trim())output=output.replaceAll(`{{${k}}}`,v.trim());try{await navigator.clipboard.writeText(output);setCopied(true);setTimeout(()=>setCopied(false),2200)}catch{saveFile('prompt.txt',output)}}
+  async function combinePrompt(){
+    let output=version.content;
+    for(const [k,v] of Object.entries(variables))if(v.trim())output=output.replaceAll(`{{${k}}}`,v.trim());
+    try{const previous=await navigator.clipboard.readText();await navigator.clipboard.writeText(combineClipboardText(previous,output));setCopied(true);setTimeout(()=>setCopied(false),2200)}
+    catch{window.alert('Unable to read the clipboard. Allow clipboard access for this site and try again. Your clipboard was not replaced by Promptfolio.')}
+  }
   const exports={...version,owner,prompt_id:prompt.id};
   return <div className="detail-inner" key={prompt.id+version.id}><div className="detail-header detail-header-minimal"><button className="mobile-back" onClick={onClose}><ArrowLeft size={17}/> Back</button></div>
   <div className="detail-scroll"><div className="status-row"><Flag tone={prompt.lifecycle==='published'?'green':'amber'}>{prompt.lifecycle}</Flag><Flag>{owner}</Flag>{version.approval_status==='approved'&&<Flag tone="violet"><Check size={12}/> Approved</Flag>}</div>
     <h2 className="detail-title">{version.title}</h2><p className="detail-description">{version.description}</p>
-    <div className="detail-version-toolbar"><span className="detail-version-meta">V{version.version_number} <span className="meta-bullet">·</span> {when(version.created_at)}</span><div className="detail-icon-actions"><button type="button" aria-label="Copy prompt" title="Copy prompt" onClick={copyPrompt}>{copied?<Check size={16}/>:<Copy size={16}/>}</button>{canEdit&&!prompt.owner_team_id?<button type="button" aria-label="Edit prompt" title="Edit prompt" onClick={onEdit}><Pencil size={16}/></button>:canSuggest?<button type="button" aria-label="Suggest an edit" title="Suggest an edit" onClick={onSuggest}><Pencil size={16}/></button>:null}{!readOnly&&<button type="button" className={saved?'saved':''} aria-label={saved?'Remove favorite':'Add to favorites'} title={saved?'Remove favorite':'Add to favorites'} onClick={onFavorite}><Heart size={16} fill={saved?'currentColor':'none'}/></button>}</div></div>
+    <div className="detail-version-toolbar"><span className="detail-version-meta">V{version.version_number} <span className="meta-bullet">·</span> {when(version.created_at)}</span><div className="detail-icon-actions"><button type="button" aria-label="Copy prompt" title="Copy prompt" onClick={copyPrompt}>{copied?<Check size={16}/>:<Copy size={16}/>}</button><button type="button" aria-label="Combine to Clipboard" title="Combine to Clipboard" onClick={combinePrompt}><ClipboardPlus size={16}/></button>{!readOnly&&<button type="button" aria-label="Send via email" title="Send via email" onClick={onShareEmail}><Mail size={16}/></button>}{canEdit&&!prompt.owner_team_id?<button type="button" aria-label="Edit prompt" title="Edit prompt" onClick={onEdit}><Pencil size={16}/></button>:canSuggest?<button type="button" aria-label="Suggest an edit" title="Suggest an edit" onClick={onSuggest}><Pencil size={16}/></button>:null}{!readOnly&&<button type="button" className={saved?'saved':''} aria-label={saved?'Remove favorite':'Add to favorites'} title={saved?'Remove favorite':'Add to favorites'} onClick={onFavorite}><Heart size={16} fill={saved?'currentColor':'none'}/></button>}</div></div>
     {pending&&<div className="review-alert"><Clock3 size={16}/><span>A newer version is awaiting approval. This is the current official version.</span></div>}
     <div className="detail-section-label"><span>The prompt</span></div><pre className="code-preview">{version.content}</pre>
     {variableNames.length>0&&<div className="variables"><div className="detail-section-label"><span>Customize the prompt</span><span>{variableNames.length} field{variableNames.length===1?'':'s'}</span></div><div className="variables-grid">{variableNames.map(n=><label className="field" key={n}>{labelize(n)}<input value={variables[n]||''} onChange={e=>setVariables(v=>({...v,[n]:e.target.value}))} placeholder={`Enter ${n.replaceAll('_',' ')}`}/></label>)}</div></div>}
@@ -280,6 +400,7 @@ export default function App(){
   const [searchExpanded,setSearchExpanded]=useState(false);
   const [selectedId,setSelectedId]=useState<string|null>(null); const [showMobileDetail,setShowMobileDetail]=useState(false);
   const [editor,setEditor]=useState<EditorState|null>(null);const [confirm,setConfirm]=useState<null|{title:string;description:string;confirm:string;run:()=>Promise<void>}>(null);
+  const [emailSharePrompt,setEmailSharePrompt]=useState<Prompt|null>(null);
   const [shareId,setShareId]=useState<string|null>(null);const [shareTeam,setShareTeam]=useState('');
   const [mineTrash,setMineTrash]=useState(false);
   const importRef=useRef<HTMLInputElement|null>(null);
@@ -390,6 +511,17 @@ export default function App(){
     return items;
   },[data,myTeams]);
   const accessible=useMemo(()=>data.prompts.filter(p=>!p.deleted_at&&(guest?(p.lifecycle==='published'):visible(p))&&!!official(p)),[data,user,myTeams,guest]);
+  // Shared URLs do not bypass RLS. Resolve the prompt only after the user and
+  // their accessible library are loaded; otherwise show the ordinary sign-in UI.
+  const sharedPromptPending=useRef<string|null>(new URLSearchParams(window.location.search).get('prompt'));
+  useEffect(()=>{
+    if(!user || !data.profiles.some(p=>p.id===user.id) || !sharedPromptPending.current)return;
+    const id=sharedPromptPending.current;
+    sharedPromptPending.current=null;
+    if(accessible.some(p=>p.id===id)){
+      setView('explore');setFilter('All prompts');setSelectedId(id);setShowMobileDetail(true);
+    }else notify('This shared prompt is not available to your account. Request access from the sender.');
+  },[user?.id,data.profiles,accessible,notify]);
   const settingsStatistics=useMemo<AccountStatistic[]>(()=>{
     // Respect Supabase RLS: these totals include only prompts visible to this account.
     const allowed=data.prompts.filter(p=>!p.deleted_at&&visible(p));
@@ -407,7 +539,7 @@ export default function App(){
   },[data,user,myTeams]);
   const searchable=useMemo(()=>{
     let found=accessible;
-    if(view==='mine') found=found.filter(p=>canEdit(p));
+    if(view==='mine') found=found.filter(p=>p.owner_user_id===user?.id||p.created_by===user?.id);
     if(view==='explore'){
       if(filter==='Personal')found=found.filter(p=>p.owner_user_id===user?.id);
       if(filter==='My teams')found=found.filter(p=>isMember(p.owner_team_id));
@@ -572,13 +704,13 @@ export default function App(){
   if(user&&(recoveryMode||blocked?.must_change_password))return <div className="session-gate"><Logo/><form onSubmit={async e=>{e.preventDefault();try{if(blocked?.must_change_password)await accountAdmin('complete_temp_password',{password:newPassword});else await updatePassword(newPassword);setNewPassword('');setRecoveryMode(false);await reload();notify('Password updated.');}catch(err){notify(err instanceof Error?err.message:'Password update failed');}}}><h2>{blocked?.must_change_password?'Change your temporary password':'Reset your password'}</h2><p>{blocked?.must_change_password?'A personal password is required before you can access company prompts.':'Choose your new account password.'}</p><label className="field">New password<input type="password" required minLength={12} value={newPassword} onChange={e=>setNewPassword(e.target.value)} autoComplete="new-password"/></label><Button type="submit">Update password <ArrowRight size={16}/></Button></form>{toast&&<div className="toast">{toast}</div>}</div>;
   return <div className="app"><header className="topbar"><div className="container topbar-in"><a href={import.meta.env.BASE_URL} className="brand-link" onClick={e=>{e.preventDefault();navigate('explore')}}><Logo/></a>
     {(user||guest)&&<nav className="main-nav" aria-label="Main navigation">{(guest?[['explore','Explore']] as [View,string][]:[['explore','Explore'],['mine','My prompts'],['teams','Teams'],['reviews','Reviews']] as [View,string][]).map(([v,t])=><button key={v} className={`nav-link ${view===v?'active':''}`} onClick={()=>navigate(v)}>{t}{v==='reviews'&&reviewQueue.length>0&&<span className="nav-bubble">{reviewQueue.length}</span>}</button>)}{isAdmin&&<button className={`nav-link ${view==='admin'?'active':''}`} onClick={()=>navigate('admin')}>Admin</button>}</nav>}
-    <div className="topbar-right">{user&&<button type="button" className="feedback-trigger" aria-label="Report an issue or suggest an improvement" title="Report an issue / Make a suggestion" onClick={()=>setFeedbackOpen(true)}><MessageSquarePlus size={17}/></button>}<button type="button" className="theme-toggle" aria-label={darkMode?'Switch to light mode':'Switch to dark mode'} title={darkMode?'Switch to light mode':'Switch to dark mode'} aria-pressed={darkMode} onClick={()=>setDarkMode(v=>!v)}>{darkMode?<Sun size={17}/>:<Moon size={17}/>}</button>{user?<><button className="notice-trigger" aria-label="Open notifications" onClick={()=>setNoticeOpen(true)}><Bell size={17}/>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length>0&&<b>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length}</b>}</button><Button onClick={()=>setEditor({mode:'create'})} className="top-new"><Plus size={17}/> New prompt</Button><div className="account-wrap" ref={accountMenuRef}><button type="button" ref={accountTriggerRef} className="profile-button" title="Open account menu" aria-expanded={accountOpen} aria-haspopup="true" onClick={()=>setAccountOpen(s=>!s)}><Avatar name={person(user.id)}/><ChevronDown size={14}/></button>{accountOpen&&<div className="account-menu"><div className="account-menu-head"><strong>{person(user.id)}</strong><span>{user.email}</span></div><div className="menu-separator"/><button onClick={()=>{setSettingsOpen(true);setAccountOpen(false)}}><Settings2 size={16}/> Settings</button><button onClick={async()=>{if(!isDemo)await signOut();setUser(null);setData(emptyData());setAccountOpen(false);setSelectedId(null)}}><LogOut size={16}/> Sign out</button></div>}</div></>:guest?<Button variant="outline" onClick={()=>{setGuest(false);setData(emptyData());setSelectedId(null)}}>Sign in <ArrowRight size={15}/></Button>:null}</div></div></header>
+    <div className="topbar-right">{user&&<button type="button" className="feedback-trigger" aria-label="Report an issue or suggest an improvement" title="Report an issue / Make a suggestion" onClick={()=>setFeedbackOpen(true)}><MessageSquarePlus size={17}/></button>}<button type="button" className="theme-toggle" aria-label={darkMode?'Switch to light mode':'Switch to dark mode'} title={darkMode?'Switch to light mode':'Switch to dark mode'} aria-pressed={darkMode} onClick={()=>setDarkMode(v=>!v)}>{darkMode?<Sun size={17}/>:<Moon size={17}/>}</button>{user?<><button className="notice-trigger" aria-label="Open notifications" onClick={()=>setNoticeOpen(true)}><Bell size={17}/>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length>0&&<b>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length}</b>}</button><Button onClick={()=>setEditor({mode:'create'})} className="top-new"><Plus size={17}/> New prompt</Button><div className="account-wrap" ref={accountMenuRef}><button type="button" ref={accountTriggerRef} className="profile-button" title="Open account menu" aria-expanded={accountOpen} aria-haspopup="true" onClick={()=>setAccountOpen(s=>!s)}><Avatar name={person(user.id)}/><ChevronDown size={14}/></button>{accountOpen&&<div className="account-menu"><div className="account-menu-head"><strong>{person(user.id)}</strong><span>{user.email}</span></div><div className="menu-separator"/><button onClick={()=>{setSettingsOpen(true);setAccountOpen(false)}}><Settings2 size={16}/> Settings</button><button onClick={()=>{navigate('changelog');setAccountOpen(false)}} aria-current={view==='changelog'?'page':undefined}><FileClock size={16}/> Changelog</button><button onClick={async()=>{if(!isDemo)await signOut();setUser(null);setData(emptyData());setAccountOpen(false);setSelectedId(null)}}><LogOut size={16}/> Sign out</button></div>}</div></>:guest?<Button variant="outline" onClick={()=>{setGuest(false);setData(emptyData());setSelectedId(null)}}>Sign in <ArrowRight size={15}/></Button>:null}</div></div></header>
 
   {!user&&!guest?<main className="container"><Auth onLogin={async u=>{setGuest(false);setUser(u);await reload()}} onDemo={async()=>{setUser(demoIdentity);await reload()}} onGuest={()=>{setData(guestSampleData());setGuest(true);setView('explore');setSelectedId(null)}} busy={busy} message={notify} onNotice={notify}/></main>:<main className="container app-main">
-  {hasExplore?<><section className="hero"><div><h1>{view==='mine'?<>Manage your prompts<span className="accent-dot">.</span></>:<>Collaborative prompt portfolio<span className="accent-dot">.</span></>}</h1><p>{view==='mine'?'Get an overview of all your personal promts and the prompts from your teams.':guest?'Preview sample prompts without an account. Sign in for your team library.':'Discover what others have built, adapt it to your work, and share what works.'}</p></div></section>
+  {hasExplore?<><section className="hero"><div><h1>{view==='mine'?<>Manage your prompts<span className="accent-dot">.</span></>:<>Collaborative prompt portfolio<span className="accent-dot">.</span></>}</h1><p>{view==='mine'?'Browse the prompts you own or originally created, including those shared with your teams.':guest?'Preview sample prompts without an account. Sign in for your team library.':'Discover what others have built, adapt it to your work, and share what works.'}</p></div></section>
   <div className="filters-bar"><div className="filter-list">{view==='explore'?(['All prompts','Personal','My teams','Other teams','Favorites'] as Filter[]).filter(x=>!guest||x==='All prompts').map(x=><button className={`filter-chip ${filter===x?'selected':''}`} key={x} onClick={()=>{setFilter(x);resetDiscovery()}}>{x}</button>):<><button className={`filter-chip ${!mineTrash?'selected':''}`} onClick={()=>setMineTrash(false)}>My library</button><button className={`filter-chip ${mineTrash?'selected':''}`} onClick={()=>setMineTrash(true)}>Trash</button></>}</div>{view==='mine'&&<button className="import-control" onClick={()=>importRef.current?.click()}><Plus size={13}/> Import prompt</button>}</div>
 
-  {view==='mine'&&mineTrash?<div className="trash-container"><div className="list-top"><h2>Recently deleted</h2></div>{data.prompts.filter(p=>p.deleted_at&&canEdit(p)).map(p=><div className="trash-item" key={p.id}><Trash2 size={18}/><div><strong>{official(p)?.title||'Untitled prompt'}</strong><p>Deleted {when(p.deleted_at||undefined)}</p></div><div className="trash-item-actions"><Button variant="outline" disabled={busy} onClick={()=>doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:true}),'Prompt restored.')}><RotateCcw size={15}/> Restore</Button>{(p.owner_user_id===user?.id||(p.owner_team_id&&(isManager(p.owner_team_id)||isAdmin)))&&<Button variant="outline" className="trash-delete-forever" disabled={busy} onClick={()=>askPermanentlyDelete(p)}><Trash2 size={15}/> Delete permanently</Button>}</div></div>)}{!data.prompts.some(p=>p.deleted_at&&canEdit(p))&&<Empty title="Your trash is empty" description="Deleted prompts will appear here while they can still be restored." icon={Trash2}/>}</div>:<div className="workspace"><div className="prompt-results"><div className="list-top list-top-tools">
+  {view==='mine'&&mineTrash?<div className="trash-container"><div className="list-top"><h2>Recently deleted</h2></div>{data.prompts.filter(p=>p.deleted_at&&(p.owner_user_id===user?.id||p.created_by===user?.id)).map(p=><div className="trash-item" key={p.id}><Trash2 size={18}/><div><strong>{official(p)?.title||'Untitled prompt'}</strong><p>Deleted {when(p.deleted_at||undefined)}</p></div><div className="trash-item-actions"><Button variant="outline" disabled={busy} onClick={()=>doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:true}),'Prompt restored.')}><RotateCcw size={15}/> Restore</Button>{(p.owner_user_id===user?.id||(p.owner_team_id&&(isManager(p.owner_team_id)||isAdmin)))&&<Button variant="outline" className="trash-delete-forever" disabled={busy} onClick={()=>askPermanentlyDelete(p)}><Trash2 size={15}/> Delete permanently</Button>}</div></div>)}{!data.prompts.some(p=>p.deleted_at&&(p.owner_user_id===user?.id||p.created_by===user?.id))&&<Empty title="Your trash is empty" description="Deleted prompts will appear here while they can still be restored." icon={Trash2}/>}</div>:<div className="workspace"><div className="prompt-results"><div className="list-top list-top-tools">
     <span className="results-count" role="status">{searchable.length} {searchable.length===1?'result':'results'}</span>
     <div className="prompt-toolbar" role="toolbar" aria-label="Prompt actions">
       {quickFilterType&&quickFilterOptions.length>0&&<div className="prompt-quick-filters" role="group" aria-label={quickFilterType==='team'?'Quick team filters':'Quick category filters'}>
@@ -604,10 +736,11 @@ export default function App(){
   </div>}
   <div className="rows">{searchable.map(p=>{const v=official(p);return v&&<div key={p.id} className={`bulk-prompt-row ${bulkExportOpen?'is-selecting':''}`}>
     {bulkExportOpen&&<label className="bulk-prompt-checkbox"><input type="checkbox" aria-label={`Select ${v.title} for export`} checked={exportIds.includes(p.id)} onChange={e=>setExportIds(old=>e.target.checked?[...old,p.id]:old.filter(id=>id!==p.id))}/></label>}
-    <PromptRow prompt={p} version={v} onDoubleClick={()=>openEditorForPrompt(p)} onCopy={()=>{void navigator.clipboard.writeText(v.content).then(()=>notify('Prompt copied to clipboard.')).catch(()=>notify('Unable to copy prompt to clipboard.'))}} listified={listified} owner={owner(p)} likes={guest?0:likeCounts[p.id]||0} active={selected?.id===p.id} onSelect={()=>{setSelectedId(p.id);setShowMobileDetail(true)}}/>
+    <PromptRow prompt={p} version={v} onDoubleClick={()=>openEditorForPrompt(p)} onCopy={()=>{void navigator.clipboard.writeText(v.content).then(()=>notify('Prompt copied to clipboard.')).catch(()=>notify('Unable to copy prompt to clipboard.'))}} onCombine={()=>{void navigator.clipboard.readText().then(old=>navigator.clipboard.writeText(combineClipboardText(old,v.content))).then(()=>notify('Combined with clipboard.')).catch(()=>notify('Clipboard access was denied. Allow clipboard reading and try again.'))}} listified={listified} owner={owner(p)} likes={guest?0:likeCounts[p.id]||0} active={selected?.id===p.id} onSelect={()=>{setSelectedId(p.id);setShowMobileDetail(true)}}/>
   </div>})}
   {searchable.length===0&&<Empty title="No prompts found" description="Try a different search, or be the first to add a prompt." action={guest?undefined:<Button onClick={()=>setEditor({mode:'create'})}><Plus size={16}/> Create prompt</Button>}/>}
-  </div></div><aside className={`detail-panel ${showMobileDetail?'mobile-visible':''}`}>{selected&&selectedVersion?<PromptDetail key={selected.id+selectedVersion.id} prompt={selected} version={selectedVersion} latest={selectedLatest} history={history(selected.id)} owner={owner(selected)} creator={person(selected.created_by)} lastEditor={person(selectedLatest?.author_id||selectedVersion.author_id)} canEdit={!guest&&canEdit(selected)} canSuggest={!guest&&canSuggest(selected)} saved={!guest&&data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===selected.id)} onClose={()=>setShowMobileDetail(false)} recommended={data.recommendations.some(r=>r.prompt_id===selected.id)} isManager={!guest&&isManager(selected.owner_team_id)} readOnly={guest} onCompare={versionId=>setCompare({prompt:selected,versionId})} onDeprecate={()=>{const reason=window.prompt("Why should this prompt be deprecated?");if(reason&&reason.trim().length>=3)void doAction(()=>execute('deprecate_team_prompt',{pid:selected.id,reason}),'Team prompt deprecated.')}} onRecommend={()=>doAction(()=>execute('set_team_recommendation',{pid:selected.id,recommend:!data.recommendations.some(r=>r.prompt_id===selected.id)}),'Recommendation updated.')} onFavorite={()=>{if(guest){notify('Sign in to like or save a prompt.');return;}void toggleFavorite(selected)}} onDuplicate={()=>{if(guest){notify('Sign in to duplicate prompts.');return;}void copySelected(selected)}} onEdit={()=>setEditor({mode:selected.owner_team_id?'suggest':'edit',prompt:selected})} onSuggest={()=>setEditor({mode:'suggest',prompt:selected})} onLifecycle={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:selected.lifecycle==='published'?'draft':'published'}),'Lifecycle updated.')} onDelete={()=>askDelete(selected)} onRequest={id=>doAction(()=>execute('request_version_review',{vid:id}),'Sent for review.')} onArchive={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:'archived'}),'Prompt archived.')} onRestore={()=>doAction(()=>execute('soft_delete_prompt',{pid:selected.id,recover:true}),'Prompt restored.')} onShare={()=>{setShareId(selected.id);setShareTeam(ownTeamList[0]?.id||'')}}/>:<Empty title="Select a prompt" description="Choose a prompt from the list to preview it here."/>}</aside></div>}</>:<><section className="subhero"><h1>{view==='teams'?'Manage your teams':view==='reviews'?'Review queue':'Manage promptfolio'}<span className="accent-dot">.</span></h1><p>{view==='teams'?'Get an overview of the teams you are in.':view==='reviews'?'GitHub pull requests for your prompts!':'Control how promptfolio works.'}</p></section>
+  </div></div><aside className={`detail-panel ${showMobileDetail?'mobile-visible':''}`}>{selected&&selectedVersion?<PromptDetail key={selected.id+selectedVersion.id} prompt={selected} version={selectedVersion} latest={selectedLatest} history={history(selected.id)} owner={owner(selected)} creator={person(selected.created_by)} lastEditor={person(selectedLatest?.author_id||selectedVersion.author_id)} canEdit={!guest&&canEdit(selected)} canSuggest={!guest&&canSuggest(selected)} saved={!guest&&data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===selected.id)} onClose={()=>setShowMobileDetail(false)} recommended={data.recommendations.some(r=>r.prompt_id===selected.id)} isManager={!guest&&isManager(selected.owner_team_id)} readOnly={guest} onCompare={versionId=>setCompare({prompt:selected,versionId})} onDeprecate={()=>{const reason=window.prompt("Why should this prompt be deprecated?");if(reason&&reason.trim().length>=3)void doAction(()=>execute('deprecate_team_prompt',{pid:selected.id,reason}),'Team prompt deprecated.')}} onRecommend={()=>doAction(()=>execute('set_team_recommendation',{pid:selected.id,recommend:!data.recommendations.some(r=>r.prompt_id===selected.id)}),'Recommendation updated.')} onFavorite={()=>{if(guest){notify('Sign in to like or save a prompt.');return;}void toggleFavorite(selected)}} onDuplicate={()=>{if(guest){notify('Sign in to duplicate prompts.');return;}void copySelected(selected)}} onShareEmail={()=>setEmailSharePrompt(selected)} onEdit={()=>setEditor({mode:selected.owner_team_id?'suggest':'edit',prompt:selected})} onSuggest={()=>setEditor({mode:'suggest',prompt:selected})} onLifecycle={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:selected.lifecycle==='published'?'draft':'published'}),'Lifecycle updated.')} onDelete={()=>askDelete(selected)} onRequest={id=>doAction(()=>execute('request_version_review',{vid:id}),'Sent for review.')} onArchive={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:'archived'}),'Prompt archived.')} onRestore={()=>doAction(()=>execute('soft_delete_prompt',{pid:selected.id,recover:true}),'Prompt restored.')} onShare={()=>{setShareId(selected.id);setShareTeam(ownTeamList[0]?.id||'')}}/>:<Empty title="Select a prompt" description="Choose a prompt from the list to preview it here."/>}</aside></div>}</>:<><section className="subhero"><h1>{view==='teams'?'Manage your teams':view==='reviews'?'Review queue':view==='changelog'?'Changelog':'Manage promptfolio'}<span className="accent-dot">.</span></h1><p>{view==='teams'?'Get an overview of the teams you are in.':view==='reviews'?'GitHub pull requests for your prompts!':view==='changelog'?'What has changed in Promptfolio, release by release.':'Control how promptfolio works.'}</p></section>
+  {view==='changelog'&&<ChangelogPage onBack={()=>navigate('explore')}/>}
   {view==='teams'&&<div className="teams-layout">{ownTeamList.length===0&&!isAdmin&&<Empty title="You're not part of a team yet" description="Your personal prompts are ready. Ask a manager to add you to a shared library." icon={LockKeyhole}/>} {ownTeamList.map(t=><TeamCard key={t.id} team={t} prompts={data.prompts.filter(p=>p.owner_team_id===t.id&&!p.deleted_at)} versions={data.versions} members={data.members.filter(m=>m.team_id===t.id)} profiles={data.profiles} manager={isManager(t.id)||isAdmin} onRename={()=>setTeamToRename({id:t.id,name:t.name})} onMember={async(email,action)=>{const found=data.profiles.find(p=>p.email.toLowerCase()===email.toLowerCase());if(!found){notify('That person needs to register an account first.');return}await doAction(()=>execute('manage_team_member',{tid:t.id,uid:found.id,operation:action}),action==='add'?'Member added.':'Member removed.')}}/>)}</div>}
   {view==='reviews'&&<div className="reviews-layout"><div className="review-summary"><span><Clock3 size={18}/> Needs your attention</span><strong>{reviewQueue.length} pending</strong></div>{reviewQueue.map(item=>{const current=official(item.prompt);const proposed=item.kind==='version'?item.record as PromptVersion:(item.record as Proposal).proposed_content;const changed=item.kind==='version'?(item.record as PromptVersion).content:(item.record as Proposal).proposed_content.content;return <article className="review-card" key={item.record.id}><div className="review-card-header"><div><h3>{current?.title||proposed.title}</h3><p>{owner(item.prompt)} · submitted by {person(item.kind==='proposal'?(item.record as Proposal).author_id:(item.record as PromptVersion).author_id)}</p></div><Flag tone="amber">{item.kind==='proposal'?(item.record as Proposal).status.replace('_',' '):'Under review'}</Flag></div><div className="compare-grid"><div><div className="compare-label">Current official version</div><pre>{current?.content||'No approved version yet'}</pre></div><div><div className="compare-label">Proposed version</div><pre>{changed}</pre></div></div>{item.kind==='proposal'&&(item.record as Proposal).rationale&&<p className="review-rationale">Reason: {(item.record as Proposal).rationale}</p>}{item.kind==='proposal'&&((item.record as Proposal).target_team_id)&&((item.record as Proposal).target_team_id!==item.prompt.owner_team_id)&&<p className="review-rationale">Requested team transfer: {owner(item.prompt)} → {data.teams.find(t=>t.id===(item.record as Proposal).target_team_id)?.name||'Unknown team'}. Approval requires management rights in both teams.</p>}<div className="review-structured"><strong>Other fields</strong><div className="compare-grid"><div><small>Current · title / category / tags</small><p>{current?.title||'—'} · {current?.category||'—'} · {current?.tags.join(', ')||'—'}</p></div><div><small>Proposed · title / category / tags</small><p>{proposed.title} · {proposed.category} · {proposed.tags.join(', ')}</p></div></div></div><div className="review-footer"><input aria-label="Rejection reason" placeholder="Reason if rejecting…" value={reviewReason[item.record.id]||''} onChange={e=>setReviewReason(s=>({...s,[item.record.id]:e.target.value}))}/>{item.kind==='proposal'&&(item.record as Proposal).status==='open'&&<Button variant="outline" onClick={()=>doAction(()=>execute('set_proposal_under_review',{proposal_id:item.record.id}),'Proposal moved to Under Review.')}>Start review</Button>}<Button variant="outline" onClick={()=>askReview(item,false)}>Reject</Button><Button disabled={item.kind==='proposal'&&!!(item.record as Proposal).target_team_id&&(item.record as Proposal).target_team_id!==item.prompt.owner_team_id&&!isManager((item.record as Proposal).target_team_id||null)&&!isAdmin} onClick={()=>askReview(item,true)}><Check size={15}/>{item.kind==='proposal'?'Accept proposal':'Approve version'}</Button></div></article>})}{reviewQueue.length===0&&<Empty title="All caught up" description="When your team needs an approval, it will appear here." icon={CheckCircle2}/>}</div>}
   {view==='admin'&&isAdmin&&<AdminSection data={data} busy={busy} onCreate={async(team,description,email)=>{const target=data.profiles.find(p=>p.email.toLowerCase()===email.toLowerCase());if(!target){notify('The manager must have an account first.');return}await doAction(()=>execute('create_team',{team_name:team,team_description:description,first_manager:target.id}),'Team created.')}} onManager={(tid,uid,promote)=>doAction(()=>execute('set_team_manager',{tid,uid,promote}),'Team role updated.')}/>}
@@ -644,6 +777,7 @@ export default function App(){
   }}/>}
   {confirm&&<Modal onClose={()=>setConfirm(null)}><div className="confirm-modal"><div className="modal-header"><div><h2>{confirm.title}</h2><p>{confirm.description}</p></div><button className="round-icon" onClick={()=>setConfirm(null)}><X size={20}/></button></div><div className="confirm-actions"><Button variant="outline" onClick={()=>setConfirm(null)}>Cancel</Button><Button disabled={busy} onClick={()=>confirm.run()}>{busy?'Working…':confirm.confirm}</Button></div></div></Modal>}
   {shareId&&<Modal onClose={()=>setShareId(null)}><div className="confirm-modal"><div className="modal-header"><div><h2>Share a separate copy</h2><p>Your personal prompt remains private. The shared copy is published to the chosen team.</p></div><button className="round-icon" onClick={()=>setShareId(null)}><X size={20}/></button></div><label className="field">Team<select value={shareTeam} onChange={e=>setShareTeam(e.target.value)}>{ownTeamList.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><div className="confirm-actions"><Button variant="outline" onClick={()=>setShareId(null)}>Cancel</Button><Button disabled={!shareTeam||busy} onClick={async()=>{await doAction(()=>execute('share_personal_prompt',{pid:shareId,target_team_id:shareTeam}),'Shared to your team.');setShareId(null)}}>Share copy <ArrowRight size={16}/></Button></div></div></Modal>}
+  {emailSharePrompt&&user&&<SharePromptEmailDialog prompt={emailSharePrompt} version={official(emailSharePrompt)!} versions={history(emailSharePrompt.id)} senderEmail={user.email} senderName={data.profiles.find(p=>p.id===user.id)?.display_name||user.email} onClose={()=>setEmailSharePrompt(null)}/>}
   {feedbackOpen&&user&&<FeedbackDialog onClose={()=>setFeedbackOpen(false)} onSubmitted={()=>notify('GitHub issue created.')}/>}
   {noticeOpen&&<Modal onClose={()=>setNoticeOpen(false)}><div className="confirm-modal"><div className="modal-header"><div><h2>Notifications</h2><p>Team reviews and decisions that matter to you.</p></div><button className="round-icon" onClick={()=>setNoticeOpen(false)}><X size={19}/></button></div><div className="notification-list">{data.notifications.filter(n=>n.recipient_id===user?.id).sort((a,b)=>b.created_at.localeCompare(a.created_at)).map(n=><button key={n.id} className={`notification-item ${n.read_at?'is-read':''}`} onClick={async()=>{await doAction(()=>execute('mark_notification_read',{nid:n.id}));setNoticeOpen(false);if(n.prompt_id){setView('explore');setSelectedId(n.prompt_id)}}}><span><Bell size={16}/></span><span><strong>{n.message}</strong><small>{when(n.created_at)} {n.read_at?'':'· Unread'}</small></span></button>)}{data.notifications.filter(n=>n.recipient_id===user?.id).length===0&&<Empty title="All caught up" description="Review updates will appear here." icon={Bell}/>}</div><div className="confirm-actions"><Button variant="outline" onClick={()=>setNoticeOpen(false)}>Close</Button><Button onClick={()=>doAction(()=>execute('mark_notification_read',{nid:null}),'All notifications marked read.')}>Mark all read</Button></div></div></Modal>}
   {compare&&<CompareVersions data={data} comparison={compare} onClose={()=>setCompare(null)} onRestore={async versionId=>{const original=data.versions.find(v=>v.id===versionId&&v.prompt_id===compare.prompt.id);if(!original){notify('Version not found.');return}const result=compare.prompt.owner_team_id?await doAction(()=>execute('propose_improvement',{pid:compare.prompt.id,payload:{title:original.title,description:original.description,content:original.content,category:original.category,tags:original.tags,usage_instructions:original.usage_instructions,example_inputs:original.example_inputs,expected_outputs:original.expected_outputs,compatible_models:original.compatible_models},explanation:`Suggest restoring v${original.version_number}. ${restoreNote}`.trim()}),'Restoration suggested to team managers.'):await doAction(()=>execute('restore_prompt_version',{pid:compare.prompt.id,source_version_id:versionId,note:restoreNote}),'Old version restored as a new version.');if(result)setCompare(null)}} note={restoreNote} setNote={setRestoreNote}/>}

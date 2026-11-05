@@ -649,7 +649,7 @@
   display: inline-block;
   color: #8f99aa;
   font-size: 11px;
-  font-weight: bold;
+  font-weight: 600;
   white-space: nowrap;
 }
 .prompt-toolbar {
@@ -1543,4 +1543,140 @@ html[data-theme='dark'] {
 }
 html[data-theme='dark'] .prompt-quick-filter-subcategories {
   border-top-color: var(--pf-dark-border);
+}
+
+/* Sharing and changelog — neutral in both themes */
+.share-email-body { padding: 22px 30px; display: grid; gap: 16px; }
+.share-email-note { color: #7c8797; line-height: 1.6; font-size: 11px; }
+.auth-share-access { background: #f5f6fd; border: 1px solid #e3e7f6; border-radius: 11px; padding: 13px 15px; margin: 14px 0 18px; display: grid; gap: 7px; }
+.auth-share-access strong { color: #47516a; font-size: 12px; }
+.auth-share-access p { color: #727d91; font-size: 11px; line-height: 1.6; }
+.auth-share-access a { font-size: 12px; display: inline-flex; align-items: center; gap: 5px; font-weight: 750; color: #5966d7; }
+/* Two independent clipboard controls at the far right of each full-width row. */
+.app-main .prompt-row-shell > .prompt-row { padding-right: 87px; }
+.row-clipboard-actions { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 2px; z-index: 2; }
+.app-main .row-clipboard-actions button { position: static; transform: none; border: 1px solid transparent; border-radius: 8px; background: transparent; width: 30px; height: 31px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: #929baa; transition: background .15s, color .15s, border-color .15s; }
+.app-main .row-clipboard-actions button:hover,.app-main .row-clipboard-actions button:focus-visible { background: #fff; border-color: #e2e5ed; color: #4955cd; }
+.app-main .row-clipboard-actions button:active { transform: translateY(1px); }
+html[data-theme='dark'] .auth-share-access { background: var(--pf-dark-panel-raised); border-color: var(--pf-dark-border); }
+html[data-theme='dark'] .auth-share-access strong { color: #e4eaf5; }
+html[data-theme='dark'] .auth-share-access p,html[data-theme='dark'] .share-email-note { color: #abb7ca; }
+html[data-theme='dark'] .auth-share-access a { color: #a6b0ff; }
+html[data-theme='dark'] .app-main .row-clipboard-actions button { color: #a9b6c9; }
+html[data-theme='dark'] .app-main .row-clipboard-actions button:hover,html[data-theme='dark'] .app-main .row-clipboard-actions button:focus-visible { background: var(--pf-dark-panel-raised); border-color: #5a667b; color: #d0d6ff; }
+@media (max-width: 560px) { .share-email-body { padding: 17px 20px; } }
+
+/* Versioned release history is a standalone page in the account menu. */
+.changelog-page{width:min(870px,100%);margin:0 auto 60px}
+.changelog-topline{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin:20px 0 23px}
+.changelog-topline>span{font-size:12px;font-weight:650;color:#858fa1}
+.changelog-timeline{display:grid;gap:14px}
+.changelog-release{background:#fff;border:1px solid #e7eaf0;border-radius:16px;padding:25px 30px;box-shadow:0 5px 22px rgba(21,31,55,.025)}
+.changelog-release-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.changelog-version{font:800 14px Manrope,'DM Sans',sans-serif;color:#404bb1}
+.changelog-status{font-size:10px;font-weight:800;letter-spacing:.025em;padding:5px 9px;border-radius:999px;background:#eff1ff;color:#505bc1}
+.changelog-status.is-development{background:#f0f1f4;color:#798396}
+.changelog-release-meta time{color:#939cab;font-size:11px;margin-left:auto}
+.changelog-release h2{font:800 18px Manrope,'DM Sans',sans-serif;letter-spacing:-.035em;color:#242d3b;margin:0 0 12px}
+.changelog-release ul{display:grid;gap:8px;margin:0;padding-left:20px;color:#6d7789;font-size:13px;line-height:1.6}
+.changelog-release.is-development{background:#f9fafc;box-shadow:none}
+.changelog-maintenance{color:#929baa;font-size:11px;line-height:1.6;margin:18px 3px}
+.changelog-maintenance code{font:inherit;font-weight:700}
+.share-email-preview textarea{width:100%;min-height:155px;resize:vertical;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;cursor:text}
+.share-email-status{display:flex;gap:9px;align-items:flex-start;color:#267553;font-size:12px;line-height:1.55;border-radius:9px;background:#eef8f3;padding:12px}
+.share-email-status svg{flex-shrink:0;margin-top:1px}
+.share-email-dialog .modal-footer>div{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+html[data-theme='dark'] .changelog-release{background:var(--pf-dark-panel-raised);border-color:var(--pf-dark-border);box-shadow:none}
+html[data-theme='dark'] .changelog-release.is-development{background:var(--pf-dark-panel)}
+html[data-theme='dark'] .changelog-release h2{color:#ecf1fb}
+html[data-theme='dark'] .changelog-version{color:#b4b9ff}
+html[data-theme='dark'] .changelog-status{background:#32365e;color:#bfc5ff}
+html[data-theme='dark'] .changelog-status.is-development{background:#303a47;color:#bdc7d7}
+html[data-theme='dark'] .changelog-release ul,html[data-theme='dark'] .changelog-topline>span,html[data-theme='dark'] .changelog-release-meta time,html[data-theme='dark'] .changelog-maintenance{color:#a8b5ca}
+html[data-theme='dark'] .share-email-status{background:#203e36;color:#a1e6c8}
+@media(max-width:600px){.changelog-release{padding:19px}.changelog-release-meta time{margin-left:0}.share-email-dialog .modal-footer>div{width:100%}.share-email-dialog .modal-footer .btn{flex:1 1 auto}.changelog-page{margin-bottom:30px}}
+
+/* Guided, editable email composer (sharing generates text; it never sends email). */
+.share-email-dialog{display:flex;flex-direction:column;max-height:min(92vh,900px);min-height:0}
+.share-email-dialog .modal-header{flex:0 0 auto}
+.share-email-dialog .share-email-body{min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:19px;padding:23px 32px 26px}
+.share-email-control-row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.6fr) minmax(0,1.8fr) auto;gap:16px;align-items:end}
+.share-email-control-row .field{min-width:0}
+.share-email-tone{display:flex;gap:4px;align-items:center;padding:4px;border-radius:10px;border:1px solid var(--line);background:var(--soft);min-height:43px}
+.share-email-tone button{flex:1;min-height:34px;border:1px solid transparent;background:transparent;border-radius:7px;color:var(--muted);font-size:12px;font-weight:750;transition:background .15s,border-color .15s,color .15s}
+.share-email-tone button.is-selected{background:var(--card);border-color:var(--line);color:var(--ink);box-shadow:0 2px 5px #1722390b}
+.share-email-tone button:focus-visible,.share-email-preview-trigger:focus-visible,.share-email-refresh-button:focus-visible,.share-email-template-options button:focus-visible{outline:3px solid #a5adfa;outline-offset:2px}
+.share-email-preview-field{display:flex;flex-direction:column;gap:8px;align-self:stretch}
+.share-email-preview-field>span{font-size:12px;font-weight:700;color:var(--ink)}
+.share-email-preview-trigger,.share-email-refresh-button{border-radius:10px;min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,border-color .15s,color .15s,transform .15s}
+.share-email-preview-trigger{width:46px;border:1px solid var(--line);background:var(--soft);color:var(--muted)}
+.share-email-preview-trigger.is-active{border-color:#5363ef;background:#5363ef;color:#fff}
+.share-email-preview-trigger:hover:not(:disabled){border-color:#5363ef;color:#5363ef;background:#eef1ff}
+.share-email-preview-trigger.is-active:hover:not(:disabled){background:#434fc3;color:#fff}
+.share-email-preview-trigger:active:not(:disabled),.share-email-refresh-button:active:not(:disabled){transform:translateY(1px)}
+.share-email-preview-trigger:disabled,.share-email-refresh-button:disabled{opacity:.5;cursor:not-allowed}
+.share-email-refresh-button{padding:0 14px;border:1px solid #5363ef;background:#eef1ff;color:#4452c8;font-size:12px;font-weight:750;white-space:nowrap}
+.share-email-template-field{display:grid;gap:8px}
+.share-email-template-options{display:flex;flex-wrap:wrap;gap:8px}
+.share-email-template-options button{border:1px solid var(--line);background:var(--soft);color:var(--muted);border-radius:999px;padding:9px 13px;font-size:12px;font-weight:750;transition:background .15s,border-color .15s,color .15s}
+.share-email-template-options button.is-selected{background:#eef1ff;border-color:#cfd5ff;color:#4452c8}
+.share-email-editable{display:flex;flex-direction:column;gap:15px;padding-top:4px}
+.share-email-editable textarea{width:100%;min-height:240px;max-height:48vh;resize:vertical;white-space:pre-wrap;line-height:1.7;font-size:12.5px}
+.share-email-outdated{font-size:11px;color:#91671c;line-height:1.6;background:#fff6e6;border:1px solid #f1e3bd;border-radius:9px;padding:10px 12px}
+.share-email-dialog .share-email-note{line-height:1.65}
+.share-email-footer{flex:0 0 auto;justify-content:flex-end}
+.share-email-footer .btn{min-width:190px}
+html[data-theme='dark'] .share-email-tone{background:var(--pf-dark-panel);border-color:var(--pf-dark-border)}
+html[data-theme='dark'] .share-email-tone button.is-selected{background:var(--pf-dark-panel-raised);border-color:var(--pf-dark-border);color:#edf2ff;box-shadow:none}
+html[data-theme='dark'] .share-email-preview-field>span{color:#edf2ff}
+html[data-theme='dark'] .share-email-preview-trigger{background:var(--pf-dark-panel);border-color:var(--pf-dark-border);color:#abb7ca}
+html[data-theme='dark'] .share-email-preview-trigger:hover:not(:disabled){background:var(--pf-dark-panel-raised);border-color:#6c78ff;color:#d6dcff}
+html[data-theme='dark'] .share-email-preview-trigger.is-active{background:#5363ef;border-color:#5363ef;color:#fff}
+html[data-theme='dark'] .share-email-preview-trigger.is-active:hover:not(:disabled){background:#616ff0;color:#fff}
+html[data-theme='dark'] .share-email-refresh-button{background:#253152;border-color:#5363ef;color:#c9d1ff}
+html[data-theme='dark'] .share-email-template-options button{background:var(--pf-dark-panel);border-color:var(--pf-dark-border);color:#abb7ca}
+html[data-theme='dark'] .share-email-template-options button.is-selected{background:#313a69;border-color:#6976f5;color:#eef1ff}
+html[data-theme='dark'] .share-email-outdated{background:#403422;border-color:#695330;color:#f0d49c}
+@media(max-width:960px){.share-email-control-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.share-email-preview-field{align-self:end}.share-email-preview-trigger,.share-email-refresh-button{width:100%}}
+@media(max-width:580px){.share-email-control-row{grid-template-columns:1fr}.share-email-dialog .share-email-body{padding:18px 20px;gap:16px}.share-email-template-options{display:grid;grid-template-columns:1fr}.share-email-footer .btn{width:100%}}
+
+/* Navbar: compact, inset hover highlight around the label (not the whole bar). */
+.topbar .main-nav {
+  align-items: center;
+  gap: clamp(5px, 1vw, 12px);
+}
+.topbar .main-nav .nav-link {
+  position: relative;
+  align-self: center;
+  flex: 0 0 auto;
+  min-height: 39px;
+  padding: 9px 15px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  transition: background-color .18s ease, box-shadow .18s ease, color .18s ease;
+}
+.topbar .main-nav .nav-link:hover,
+.topbar .main-nav .nav-link:focus-visible {
+  background: #edf0f6;
+  box-shadow: inset 0 0 0 1px #e1e5ef;
+  color: #303b50;
+}
+.topbar .main-nav .nav-link.active {
+  border-bottom-color: var(--ink);
+}
+html[data-theme='dark'] .topbar .main-nav .nav-link:hover,
+html[data-theme='dark'] .topbar .main-nav .nav-link:focus-visible {
+  background: #303b50;
+  box-shadow: inset 0 0 0 1px #485670;
+  color: #f0f3ff;
+}
+html[data-theme='dark'] .topbar .main-nav .nav-link.active {
+  border-bottom-color: #b9c2ff;
+}
+/* Keep the inset hover treatment on the small, horizontally scrollable navbar. */
+@media (max-width: 760px) {
+  .topbar .main-nav { gap: 5px; }
+  .topbar .main-nav .nav-link { min-height: 35px; padding: 7px 11px; border-radius: 9px; }
 }

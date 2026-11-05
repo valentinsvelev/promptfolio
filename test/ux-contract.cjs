@@ -123,3 +123,77 @@ assert.match(app,/\.\.\.f,team:v,category:''/);
 assert.match(css,/\.prompt-quick-filter-row\s*\{/);
 assert.match(css,/\.prompt-quick-filter-subcategories\s*\{/);
 console.log('PASS: Favorites categories and team-scoped secondary quick filters');
+
+// Settings changelog, non-destructive clipboard combination, email link and ownership.
+const changelogSrc=fs.readFileSync('src/changelog.ts','utf8');
+const sharingSrc=fs.readFileSync('src/sharing.ts','utf8');
+assert.match(app,/function ChangelogPage\(/);
+assert.match(app,/navigate\('changelog'\)/);
+assert.match(app,/aria-label="Promptfolio changelog"/);
+assert.doesNotMatch(app,/className="settings-section settings-changelog"/);
+for(const version of ['0.3.0','0.3.1','0.3.2','0.3.3','0.3.4'])
+  assert.match(changelogSrc,new RegExp(`version: '${version.replaceAll('.','\\.')}'`),`Missing release notes for v${version}`);
+for(const version of ['0.1.0','0.2.0'])
+  assert.match(changelogSrc,new RegExp(`version: '${version.replaceAll('.','\\.')}'[^}]*status: 'development'`,'s'),`v${version} must be a development release`);
+assert.match(css,/\.changelog-page\{/);
+assert.match(app,/combineClipboardText\(previous,output\)/);
+assert.match(app,/navigator\.clipboard\.readText\(\)/);
+assert.match(app,/SharePromptEmailDialog/);
+// The email dialog changes its preview button's accessible label based on state.
+// Match the implemented behavior, not a single static JSX attribute spelling.
+const emailDialogStart=app.indexOf('function SharePromptEmailDialog(');
+const emailDialogEnd=app.indexOf('function PromptDetail(',emailDialogStart);
+assert.ok(emailDialogStart>=0&&emailDialogEnd>emailDialogStart,'Email dialog component must exist');
+const emailDialogSource=app.slice(emailDialogStart,emailDialogEnd);
+assert.match(emailDialogSource,/aria-label=\{[^}]*'Email preview generated'[^}]*'Generate email preview'[^}]*\}/);
+assert.match(emailDialogSource,/aria-label="Refresh preview"/);
+// The current composer lets users edit the email body; the generated subject is
+// covered by the email-template tests below but is not editable in this UI.
+assert.match(emailDialogSource,/aria-label="Edit email message"/);
+assert.match(emailDialogSource,/value=\{draft\.body\}/);
+assert.match(emailDialogSource,/Copy to Clipboard/);
+assert.match(app,/versions=\{history\(emailSharePrompt\.id\)\}/);
+// Copy to Clipboard currently copies the edited message body, not a subject line.
+assert.match(emailDialogSource,/navigator\.clipboard\.writeText\(draft\.body\)/);
+assert.doesNotMatch(app,/Open email app/);
+assert.doesNotMatch(app,/window\.location\.href=prepared\.mailto/);
+const emailTemplateSrc=fs.readFileSync('src/emailTemplates.ts','utf8');
+const emailTemplateJs=ts.transpileModule(emailTemplateSrc,{fileName:'emailTemplates.ts',compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const emailTemplateModule={exports:{}};
+vm.runInNewContext(`(function(module,exports){${emailTemplateJs}\n})`)(emailTemplateModule,emailTemplateModule.exports);
+const {generatePromptEmail}=emailTemplateModule.exports;
+const sampleEmail={recipientName:'Alex',title:'Analyse survey responses',description:'Analyse anonymised responses',content:'Review {{responses}} and identify themes',versionNumber:2,officialVersionNumber:3,promptUrl:'https://example.com/promptfolio/?prompt=abc',senderName:'Taylor'};
+const formalShare=generatePromptEmail({...sampleEmail,template:'share',tone:'formal'});
+assert.match(formalShare.body,/Dear Alex/);
+assert.match(formalShare.body,/Review \{\{responses\}\}/);
+assert.match(formalShare.body,/Version: v2/);
+assert.match(formalShare.body,/currently published version/);
+assert.match(formalShare.body,/reply to this email to request access/);
+assert.match(formalShare.subject,/v2/);
+for(const kind of ['share','feedback','collaborate']){
+  for(const tone of ['formal','casual']){
+    const result=generatePromptEmail({...sampleEmail,template:kind,tone});
+    assert.match(result.body,/Alex/);
+    assert.match(result.body,/Taylor/);
+    assert.match(result.body,/Review \{\{responses\}\}/);
+  }
+}
+assert.match(generatePromptEmail({...sampleEmail,template:'feedback',tone:'casual'}).body,/Hi Alex/);
+assert.throws(()=>generatePromptEmail({...sampleEmail,recipientName:' ',template:'share',tone:'formal'}),/recipient/);
+assert.match(app,/Request access by email/);
+assert.match(app,/if\(view==='mine'\) found=found\.filter\(p=>p\.owner_user_id===user\?\.id\|\|p\.created_by===user\?\.id\)/);
+assert.match(app,/sharedPromptPending/);
+const sharingJs=ts.transpileModule(sharingSrc,{fileName:'sharing.ts',compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const sharingModule={exports:{}};
+vm.runInNewContext(`(function(module,exports){${sharingJs}\n})`)(sharingModule,sharingModule.exports);
+const {combineClipboardText,promptEmailDraft}=sharingModule.exports;
+assert.equal(combineClipboardText('Earlier note','Current prompt'), 'Earlier note\n\n---\n\nCurrent prompt');
+assert.equal(combineClipboardText('','Current prompt'),'Current prompt');
+const base={recipient:'colleague@example.com',sender:'user@example.com',title:'Test prompt',description:'A useful prompt',content:'Confidential prompt body',promptUrl:'https://example.org/promptfolio/?prompt=abc'};
+const safeDraft=promptEmailDraft({...base,includeContent:false});
+assert.ok(!safeDraft.body.includes(base.content),'Private content must not be included by default');
+assert.match(safeDraft.body,/Need access\?/);
+assert.match(safeDraft.body,/example.org\/promptfolio/);
+assert.match(promptEmailDraft({...base,includeContent:true}).body,/Confidential prompt body/);
+assert.throws(()=>promptEmailDraft({...base,includeContent:true,content:'x'.repeat(3500)}),/too long/);
+console.log('PASS: versioned changelog page, editable template email composer, clipboard and My prompts ownership');

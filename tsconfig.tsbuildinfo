@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./vite.config.ts"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/api.ts","./src/changelog.ts","./src/emailtemplates.ts","./src/main.tsx","./src/sharing.ts","./src/types.ts","./vite.config.ts"],"version":"5.9.3"}
