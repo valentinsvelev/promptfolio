@@ -1,385 +1,36 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, ArrowUpRight, Bell, BookOpen, Check, CheckCircle2, ChevronDown,
-  ChevronRight, Clipboard, ClipboardPlus, Clock3, Copy, Download, FileClock, FileText, FolderClosed, Heart, Pencil,
-  LayoutGrid, Lightbulb, List, LockKeyhole, LogOut, Mail, Menu, MoreHorizontal, Plus, RotateCcw,
-  Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Sun, Moon, Tag, Trash2, Users, MessageSquarePlus,
-  X, type LucideIcon,
+  ArrowRight, Bell, Check, CheckCircle2, ChevronDown, Clock3, Download, FileClock,
+  List, LockKeyhole, LogOut, MessageSquarePlus, Moon, Plus, RotateCcw,
+  Search, Settings2, SlidersHorizontal, Sun, Trash2, X,
 } from 'lucide-react';
-import {accountAdmin, changePassword, client, demoIdentity, execute, favorite, guestSampleData, identity, isDemo, loadData, loadLikeCounts, resetPassword, signIn, signOut, signUp, updateDisplayName, loadListifyPreference, saveListifyPreference, submitGithubIssue, updatePassword} from './api';
-import {blankBody, emptyData, type AppData, type Filter, type Identity, type Member, type Prompt, type PromptBody, type PromptVersion, type Proposal, type ReviewItem, type View} from './types';
+import {accountAdmin, changePassword, client, demoIdentity, execute, favorite, guestSampleData, identity, isDemo, loadData, loadLikeCounts, signOut, updatePassword, updateDisplayName, loadListifyPreference, saveListifyPreference} from './services/api';
+import {blankBody, emptyData, type AppData, type Filter, type Identity, type Prompt, type PromptBody, type PromptVersion, type Proposal, type ReviewItem, type View} from './types';
 import packageInfo from '../package.json';
-import {changelog} from './changelog';
-import {accessRequestMailto, combineClipboardText, isEmailAddress} from './sharing';
-import {generatePromptEmail, type GeneratedPromptEmail, type PromptEmailTemplate, type PromptEmailTone} from './emailTemplates';
+import { Button, Logo, Modal } from './components/ui';
+import { AccountSettings, type AccountStatistic } from './components/account/AccountSettings';
+import { ChangelogPage } from './components/changelog/ChangelogPage';
+import { RenameTeamDialog } from './components/teams/RenameTeamDialog';
+import { FeedbackDialog } from './components/feedback/FeedbackDialog';
+import { Auth } from './components/auth/Auth';
+import { PromptEditor, type EditorState } from './components/prompts/PromptEditor';
+import { SharePromptEmailDialog } from './components/email/SharePromptEmailDialog';
+import { when } from './utils/format';
+import { Avatar, Empty, Flag } from './components/ui/LibraryPrimitives';
+import { PromptRow } from './components/prompts/PromptRow';
+import { PromptDetail } from './components/prompts/PromptDetail';
+import { CompareVersions } from './components/prompts/CompareVersions';
+import { AdminCategories } from './components/admin/AdminCategories';
+import { AdminAdvanced } from './components/admin/AdminAdvanced';
+import { AdminSection } from './components/admin/AdminSection';
+import { TeamCard } from './components/teams/TeamCard';
+import { saveFile } from './utils/prompt';
+import { combineClipboardText } from './utils/sharing';
+import { useHashRoute } from './hooks/useHashRoute';
+import { isAuthRoute, viewFromHash } from './utils/routes';
 
 // Injected by Vite for both local development and GitHub Pages builds.
 declare const __PROMPTFOLIO_BUILD_DATE__: string;
-
-const categories: Record<string, { icon: LucideIcon; tone: string }> = {
-  Writing: {icon: FileText, tone:'lilac'},
-  Research: {icon: Search,tone:'sand'},
-  Analysis: {icon: LayoutGrid,tone:'sky'},
-  Engineering:{icon: Settings2,tone:'slate'},
-  Marketing:{icon: Sparkles,tone:'peach'},
-  Productivity:{icon: Clock3,tone:'mint'},
-  General:{icon: Lightbulb,tone:'lilac'},
-};
-const when=(iso?:string)=>iso?new Intl.DateTimeFormat('en',{month:'short',day:'numeric',year:'numeric'}).format(new Date(iso)):'—';
-const initials=(name:string)=>name.split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase();
-const varsIn=(text:string)=>[...new Set([...text.matchAll(/\{\{([A-Za-z][\w]*)\}\}/g)].map(m=>m[1]))];
-const sanitize=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,64)||'prompt';
-const labelize=(s:string)=>s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
-function saveFile(name:string,text:string,type='text/plain') {const u=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-
-function Logo(){return <span className="brand"><span className="brand-mark" aria-hidden="true"><i/><i/><i/><i/></span><span>promptfolio<span className="brand-period">.</span></span></span>}
-function Button({children,variant='primary',className='',...props}:{children:ReactNode;variant?:'primary'|'outline'|'ghost'|'soft';className?:string} & ButtonHTMLAttributes<HTMLButtonElement>){return <button className={`btn btn-${variant} ${className}`} {...props}>{children}</button>}
-function Modal({children,onClose,wide=false}:{children:ReactNode;onClose:()=>void;wide?:boolean}){
-  useEffect(()=>{const f=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose()};document.addEventListener('keydown',f);document.body.style.overflow='hidden';return()=>{document.removeEventListener('keydown',f);document.body.style.overflow=''}},[onClose]);
-  return <div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className={`modal ${wide?'modal-wide':''}`} role="dialog" aria-modal="true">{children}</section></div>;
-}
-function Avatar({name,small=false}:{name:string;small?:boolean}){return <span className={`avatar ${small?'avatar-small':''}`}>{initials(name)||'U'}</span>}
-
-type AccountStatistic = { label: string; value: number };
-function AccountSettings({name,email,statistics,onSaveName,onSavePassword,onClose}:{
-  name:string;email:string;statistics:AccountStatistic[];
-  onSaveName:(value:string)=>Promise<void>;onSavePassword:(value:string)=>Promise<void>;onClose:()=>void;
-}) {
-  const [displayName,setDisplayName]=useState(name);
-  const [password,setPassword]=useState('');
-  const [confirmPassword,setConfirmPassword]=useState('');
-  const [working,setWorking]=useState<'name'|'password'|null>(null);
-  const [feedback,setFeedback]=useState('');
-  const [error,setError]=useState('');
-  const close=()=>{if(!working)onClose()};
-  async function saveName(event:FormEvent){
-    event.preventDefault();const trimmed=displayName.trim();
-    if(trimmed.length<2||trimmed.length>80){setError('Your name must be between 2 and 80 characters.');return;}
-    setWorking('name');setError('');setFeedback('');
-    try {await onSaveName(trimmed);setDisplayName(trimmed);setFeedback('Display name updated.');}
-    catch(e){setError(e instanceof Error?e.message:'Could not update your name.');}
-    finally{setWorking(null);}
-  }
-  async function savePassword(event:FormEvent){
-    event.preventDefault();
-    if(password.length<12){setError('Choose a password with at least 12 characters.');return;}
-    if(password!==confirmPassword){setError('The passwords do not match.');return;}
-    setWorking('password');setError('');setFeedback('');
-    try {await onSavePassword(password);setPassword('');setConfirmPassword('');setFeedback('Password updated.');}
-    catch(e){setError(e instanceof Error?e.message:'Could not update your password.');}
-    finally{setWorking(null);}
-  }
-  return <Modal onClose={close} wide>
-    <div className="settings-dialog">
-      <div className="modal-header"><div><h2>Settings</h2><p>Account details and your Promptfolio library at a glance.</p></div>
-        <button type="button" className="round-icon" aria-label="Close settings" onClick={close} disabled={!!working}><X size={19}/></button>
-      </div>
-      <div className="settings-dialog-scroll">
-        <section aria-label="Portfolio statistics" className="settings-section">
-          <div className="settings-section-heading"><h3>Library overview</h3><span>Only content you can access</span></div>
-          <div className="settings-stat-grid">{statistics.map(s=><div className="settings-stat" key={s.label}><strong>{s.value.toLocaleString()}</strong><span>{s.label}</span></div>)}</div>
-        </section>
-        <div className="settings-forms">
-          <form className="settings-form" onSubmit={saveName}>
-            <h3>Personal details</h3><p>Update the name shown to your colleagues.</p>
-            <label className="field">Display name<input required autoComplete="name" maxLength={80} minLength={2} value={displayName} onChange={e=>setDisplayName(e.target.value)}/></label>
-            <label className="field">Email address<input type="email" value={email} readOnly aria-readonly="true" title="Email cannot be changed here"/></label>
-            <Button type="submit" disabled={!!working||displayName.trim()===name}> {working==='name'?'Saving…':'Save name'} </Button>
-          </form>
-          <form className="settings-form" onSubmit={savePassword}>
-            <h3>Security</h3><p>Choose a new password for your account.</p>
-            <label className="field">New password<input type="password" required autoComplete="new-password" minLength={12} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 12 characters"/></label>
-            <label className="field">Confirm new password<input type="password" required autoComplete="new-password" minLength={12} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/></label>
-            <Button type="submit" disabled={!!working||!password||!confirmPassword}> {working==='password'?'Updating…':'Update password'} </Button>
-          </form>
-        </div>
-        {error&&<p role="alert" className="settings-feedback settings-feedback-error">{error}</p>}
-        {feedback&&<p role="status" className="settings-feedback settings-feedback-success"><CheckCircle2 size={16}/>{feedback}</p>}
-      </div>
-    </div>
-  </Modal>;
-}
-
-
-function ChangelogPage({onBack}:{onBack:()=>void}){
-  return <section className="changelog-page" aria-label="Promptfolio changelog">
-    <div className="changelog-topline"><Button type="button" variant="outline" onClick={onBack}><ArrowLeft size={15}/> Back to library</Button><span>Current version: v{packageInfo.version}</span></div>
-    <div className="changelog-timeline">
-      {changelog.map(entry=><article className={`changelog-release ${entry.status==='development'?'is-development':''}`} key={entry.version}>
-        <div className="changelog-release-meta"><span className="changelog-version">v{entry.version}</span><span className={`changelog-status ${entry.status==='development'?'is-development':''}`}>{entry.status==='development'?'Development':'Release'}</span>{entry.date&&<time dateTime={entry.date}>{when(entry.date+'T12:00:00Z')}</time>}</div>
-        <h2>{entry.title}</h2>
-        <ul>{entry.changes.map(change=><li key={change}>{change}</li>)}</ul>
-      </article>)}
-    </div>
-  </section>;
-}
-
-function RenameTeamDialog({team,onClose,onSave}:{team:{id:string;name:string};onClose:()=>void;onSave:(name:string)=>Promise<boolean>}){
-  const [name,setName]=useState(team.name);
-  const [saving,setSaving]=useState(false);
-  const candidate=name.trim();
-  async function submit(e:FormEvent){
-    e.preventDefault();
-    if(candidate.length<2||candidate.length>80||candidate===team.name)return;
-    setSaving(true);
-    try{if(await onSave(candidate))onClose();}finally{setSaving(false);}
-  }
-  return <Modal onClose={()=>{if(!saving)onClose()}}>
-    <form className="rename-team-dialog" onSubmit={submit}>
-      <div className="modal-header"><div><h2>Rename team</h2><p>Update the name shown throughout Promptfolio. Existing prompts and memberships stay unchanged.</p></div><button type="button" className="round-icon" aria-label="Close rename team dialog" onClick={onClose} disabled={saving}><X size={19}/></button></div>
-      <div className="rename-team-body"><label className="field">Team name<input autoFocus required minLength={2} maxLength={80} value={name} onChange={e=>setName(e.target.value)}/></label></div>
-      <div className="modal-footer"><div><Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button><Button type="submit" disabled={saving||candidate.length<2||candidate.length>80||candidate===team.name}>{saving?'Renaming…':'Save name'}</Button></div></div>
-    </form>
-  </Modal>;
-}
-
-function Empty({title,description,icon:Icon=BookOpen,action}:{title:string;description:string;icon?:LucideIcon;action?:ReactNode}){return <div className="empty"><div className="empty-symbol"><Icon size={22}/></div><h3>{title}</h3><p>{description}</p>{action}</div>}
-function Flag({children,tone='neutral'}:{children:ReactNode;tone?:'neutral'|'green'|'violet'|'amber'}){return <span className={`flag flag-${tone}`}>{children}</span>}
-function IconTile({category}:{category:string}){const item=categories[category]||categories.General;const Icon=item.icon;return <span className={`icon-tile tone-${item.tone}`}><Icon size={18} strokeWidth={1.8}/></span>}
-
-function FeedbackDialog({onClose,onSubmitted}:{onClose:()=>void;onSubmitted:(url:string)=>void}){
-  const [kind,setKind]=useState<'bug'|'enhancement'>('bug');
-  const [title,setTitle]=useState('');const [description,setDescription]=useState('');
-  const [submitting,setSubmitting]=useState(false);const [error,setError]=useState('');const [issueUrl,setIssueUrl]=useState('');
-  async function submit(e:FormEvent){
-    e.preventDefault();setSubmitting(true);setError('');
-    try{const url=await submitGithubIssue(kind,title.trim(),description.trim());setIssueUrl(url);onSubmitted(url)}
-    catch(err){setError(err instanceof Error?err.message:'Could not create the GitHub issue.')}
-    finally{setSubmitting(false)}
-  }
-  return <Modal onClose={()=>{if(!submitting)onClose()}}>
-    <form className="feedback-dialog" onSubmit={submit}>
-      <div className="modal-header"><div><h2>Report an issue or idea</h2><p>Your feedback will become an issue in the Promptfolio GitHub repository.</p></div><button type="button" className="round-icon" onClick={onClose} disabled={submitting} aria-label="Close"><X size={18}/></button></div>
-      <div className="feedback-fields">
-        <label className="field">Feedback type<select value={kind} onChange={e=>setKind(e.target.value as 'bug'|'enhancement')}><option value="bug">Report an issue</option><option value="enhancement">Suggest a feature</option></select></label>
-        <label className="field">Short title<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120} minLength={5} required placeholder="Describe the issue or idea"/></label>
-        <label className="field">Description<textarea value={description} onChange={e=>setDescription(e.target.value)} maxLength={4000} minLength={15} required rows={5} placeholder="What happened, or what would you like improved?"/></label>
-        <p className="feedback-privacy">GitHub issues in this repository are public. Do not include passwords, customer data, private prompt text, or other confidential information.</p>
-        {issueUrl&&<p role="status" className="feedback-success">Issue created! <a href={issueUrl} target="_blank" rel="noopener noreferrer">View it on GitHub <ArrowUpRight size={14}/></a></p>}
-        {error&&<p role="alert" className="form-error">{error}</p>}
-      </div>
-      <div className="modal-footer"><div><Button type="button" variant="outline" disabled={submitting} onClick={onClose}>{issueUrl?'Close':'Cancel'}</Button>{!issueUrl&&<Button disabled={submitting||title.trim().length<5||description.trim().length<15} type="submit">{submitting?'Submitting…':'Create GitHub issue'} <ArrowRight size={16}/></Button>}</div></div>
-    </form>
-  </Modal>;
-}
-
-function Auth({onLogin,onGuest,onDemo,busy,message,onNotice}:{onLogin:(u:Identity)=>void;onGuest:()=>void;onDemo:()=>void;busy:boolean;message:(s:string)=>void;onNotice:(s:string)=>void}){
-  const sharedLink = new URLSearchParams(window.location.search);
-  const sharedPromptId = sharedLink.get('prompt');
-  const sharedFrom = sharedLink.get('from') || '';
-  const accessContact = isEmailAddress(sharedFrom) ? sharedFrom : null;
-  const [mode,setMode]=useState<'login'|'signup'|'reset'|'update'>('login');
-  const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [name,setName]=useState('');
-  const [working,setWorking]=useState(false);
-  useEffect(()=>{if(!client)return;const {data}=client.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY')setMode('update')});return()=>data.subscription.unsubscribe()},[]);
-  async function submit(e:FormEvent){e.preventDefault();setWorking(true);try{
-    if(mode==='login'){if(isDemo){onDemo();return;}const res=await signIn(email,password);if(res.user)onLogin({id:res.user.id,email:res.user.email||email});}
-    if(mode==='signup'){if(isDemo){onDemo();return;}await signUp(email,password,name);onNotice('Check your email to verify your new account, then sign in.');setMode('login');}
-    if(mode==='reset'){if(isDemo){onNotice('Password resets require Supabase to be configured.');return;}await resetPassword(email);onNotice('If this account exists, a password reset link has been sent.');setMode('login');}
-    if(mode==='update'){await updatePassword(password);onNotice('Password updated. Please sign in.');setMode('login');}
-  }catch(err){message(err instanceof Error?err.message:'Unable to sign in.')}finally{setWorking(false)}}
-  return <div className="auth-layout">
-  <div className="auth-card"><div className="auth-mini-brand"><Logo/></div><h2>{mode==='login'?'Sign in to continue':mode==='signup'?'Create your account':mode==='reset'?'Reset your password':'Choose a new password'}</h2><p className="auth-sub">{mode==='login'?'Your prompt portfolio is a sign-in away.':mode==='signup'?'Registration is invite-only. Use an approved email address.':'We’ll help you get back to your prompts.'}</p>
-  {sharedPromptId&&<div className="auth-share-access"><strong>A prompt was shared with you.</strong><p>Sign in to view it. Your account also needs permission to access the prompt's library.</p>
-    {accessContact&&<a href={accessRequestMailto(accessContact,'a shared prompt')}>Request access by email <ArrowUpRight size={13}/></a>}
-  </div>}
-  <form onSubmit={submit} className="auth-form">{mode==='signup'&&<label>Full name<input required value={name} onChange={e=>setName(e.target.value)} placeholder="Alex Morgan"/></label>}{mode!=='update'&&<label>Work email<input type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com"/></label>}{mode!=='reset'&&<label>Password<input type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength={6} required value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 6 characters"/></label>}
-  <Button type="submit" disabled={working||busy}>{working?'One moment…':mode==='login'?'Sign in':mode==='signup'?'Create account':mode==='reset'?'Send reset link':'Update password'} <ArrowRight size={16}/></Button></form>
-  <div className="auth-links"><button onClick={()=>setMode(mode==='login'?'signup':'login')}>{mode==='login'?'New here? Create an account':'Back to sign in'}</button>{mode==='login'&&!isDemo&&<button onClick={()=>setMode('reset')}>Forgot password?</button>}</div><div className="guest-choice">{isDemo&&<button type="button" className="demo-entry" onClick={onDemo}><Sparkles size={15}/> Try the full demo workspace</button>}<span>or</span><button type="button" className="guest-button" onClick={onGuest}><BookOpen size={16}/> Continue as guest <ArrowRight size={15}/></button><p>Preview sample prompts without an account. Guest access is view-only; company libraries remain private.</p></div></div></div>;
-}
-
-function MarkdownPreview({content}:{content:string}){
-  return <div className="md-rendered">{content.split('\n').map((line,i)=>{
-    if(line.startsWith('## '))return <h4 key={i}>{line.slice(3)}</h4>;
-    if(line.startsWith('# '))return <h3 key={i}>{line.slice(2)}</h3>;
-    if(line.startsWith('- '))return <div key={i} className="md-list">• {line.slice(2)}</div>;
-    return <p key={i}>{line||'\u00a0'}</p>;
-  })}</div>;
-}
-type EditorMode='create'|'edit'|'suggest';
-type EditorState={mode:EditorMode; prompt?:Prompt};
-function PromptEditor({editor,body,teams,categoryNames,existingTitles,onClose,onSubmit,onAction,canManage,canDeprecate,saving}:{editor:EditorState;body:PromptBody;teams:{id:string;name:string}[];categoryNames:string[];existingTitles:string[];onClose:()=>void;onSubmit:(body:PromptBody,team:string|null,publish:boolean,note:string)=>Promise<void>;onAction:(action:'draft'|'share'|'archive'|'deprecate'|'trash')=>void;canManage:boolean;canDeprecate:boolean;saving:boolean}){
-  const [draft,setDraft]=useState<PromptBody>(body);const [team,setTeam]=useState(editor.mode==='create'?'':editor.prompt?.owner_team_id||'');
-  const [publish,setPublish]=useState(true);const [note,setNote]=useState('');const [error,setError]=useState('');const [categoryInput,setCategoryInput]=useState('');const [customCategory,setCustomCategory]=useState(false);
-  const [tagsText,setTagsText]=useState(body.tags.join(', '));const [modelsText,setModelsText]=useState(body.compatible_models.join(', '));
-  const set=(field:keyof PromptBody,value:string|string[])=>setDraft(old=>({...old,[field]:value}));
-  const updateList=(field:'tags'|'compatible_models',value:string)=>{if(field==='tags')setTagsText(value);else setModelsText(value)};
-  const similar = existingTitles.filter(t=>t.toLowerCase().trim()===draft.title.toLowerCase().trim()|| (draft.title.trim().length>10 && t.toLowerCase().includes(draft.title.toLowerCase().trim()))).slice(0,3);
-  const title=editor.mode==='create'?'Create a prompt':editor.mode==='suggest'?'Suggest an improvement':'Edit prompt';
-  async function submit(e:FormEvent){e.preventDefault();if(!draft.title.trim()||!draft.content.trim()){setError('A title and prompt text are required.');return}const category=customCategory?categoryInput.trim():draft.category;if(category.length<2||category.length>70){setError('Category must be between 2 and 70 characters.');return}setError('');await onSubmit({...draft,category,tags:tagsText.split(',').map(s=>s.trim().replace(/^#/,'')).filter(Boolean),compatible_models:modelsText.split(',').map(s=>s.trim()).filter(Boolean)},team||null,publish,note)}
-  return <Modal onClose={onClose} wide><form className="editor" onSubmit={submit}>
-    <div className="modal-header editor-modal-header"><div className="editor-header-content"><h2>{title}</h2>{editor.mode!=='create'&&canManage&&<div className="editor-header-actions">{editor.prompt?.lifecycle!=='draft'&&<button type="button" onClick={()=>onAction('draft')} disabled={saving}>Move to draft</button>}{editor.prompt?.owner_user_id&&<button type="button" onClick={()=>onAction('share')} disabled={saving}>Share to team</button>}{editor.prompt?.lifecycle!=='archived'&&<button type="button" onClick={()=>onAction('archive')} disabled={saving}>Archive</button>}{canDeprecate&&<button type="button" onClick={()=>onAction('deprecate')} disabled={saving}>Deprecate</button>}<button type="button" className="danger-text" onClick={()=>onAction('trash')} disabled={saving}>Move to trash</button></div>}</div><button className="round-icon" type="button" aria-label="Close" onClick={onClose}><X size={20}/></button></div>
-    <div className="editor-scroll">
-      <div className="field-grid editor-primary-fields editor-three-column-fields">
-        <label className="field"><span className="field-label">Prompt title<strong className="required">*</strong></span><input autoFocus required maxLength={150} value={draft.title} onChange={e=>set('title',e.target.value)} placeholder="e.g. Summarise a customer interview"/></label>
-        <div className="field category-picker">
-          <label className="field-label" htmlFor="prompt-category">Category</label>
-          <div className="category-picker-control">
-            {customCategory ? <>
-              <input id="prompt-category" autoFocus required minLength={2} maxLength={70} placeholder="Enter new category name" value={categoryInput} onChange={e=>setCategoryInput(e.target.value)}/>
-              <button type="button" className="category-picker-switch" aria-label="Choose an existing category" title="Choose an existing category" onClick={()=>{setCustomCategory(false);setCategoryInput('')}}><ChevronDown size={17}/></button>
-            </> :
-              <select id="prompt-category" value={draft.category} onChange={e=>{if(e.target.value==='__create__'){setCategoryInput('');setCustomCategory(true)}else{set('category',e.target.value)}}}>
-                {[...new Set([...categoryNames,draft.category])].filter(Boolean).map(s=><option key={s} value={s}>{s}</option>)}
-                <option value="__create__">+ Create a new category</option>
-              </select>
-            }
-          </div>
-        </div>
-        <label className="field"><span className="field-label">Assign to team</span><select value={team} onChange={e=>setTeam(e.target.value)}>
-          <option value="" disabled={!!editor.prompt?.owner_team_id}>{editor.prompt?.owner_team_id?'Select team':'Personal library (private)'}</option>
-          {teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
-        </select></label>
-      </div>
-      {similar.length>0&&editor.mode==='create'&&<p className="duplicate-hint"><Lightbulb size={15}/> Similar prompt already exists: {similar.join(', ')}. Check before duplicating.</p>}
-      <div className="field-grid editor-secondary-fields">
-        <label className="field"><span className="field-label">Tags <span className="hint">comma separated</span></span><input value={tagsText} onChange={e=>updateList('tags',e.target.value)} placeholder="writing, meetings"/></label>
-        <label className="field"><span className="field-label">Compatible AI models <span className="hint">comma separated</span></span><input value={modelsText} onChange={e=>updateList('compatible_models',e.target.value)} placeholder="ChatGPT, Claude"/></label>
-      </div>
-
-    <label className="field"><span className="field-label">Prompt text <strong className="required">*</strong><span className="hint">Use # for headings, **bold** for emphasis, - for lists, and {'{{variable_name}}'} for fill-in fields.</span></span><textarea className="prompt-editor-textarea" required rows={9} value={draft.content} onChange={e=>set('content',e.target.value)} placeholder={'You are an expert at…\n\nReview {{document_text}} and return…'}/></label>
-    <label className="field"><span className="field-label">Short description</span><textarea rows={2} value={draft.description} onChange={e=>set('description',e.target.value)} placeholder="What will this help someone achieve?"/></label>
-    <label className="field"><span className="field-label">How to use</span><textarea rows={3} value={draft.usage_instructions} onChange={e=>set('usage_instructions',e.target.value)} placeholder="Tips for getting the best result"/></label>
-    <div className="field-grid"><label className="field"><span className="field-label">Example input</span><textarea rows={2} value={draft.example_inputs} onChange={e=>set('example_inputs',e.target.value)}/></label><label className="field"><span className="field-label">Expected output</span><textarea rows={2} value={draft.expected_outputs} onChange={e=>set('expected_outputs',e.target.value)}/></label></div>
-    {editor.mode==='create'&&<label className="toggle-line"><input type="checkbox" checked={publish} onChange={e=>setPublish(e.target.checked)}/><span><strong>Publish now</strong><small>Visibility follows the permissions of the selected library.</small></span></label>}
-    {editor.mode==='suggest'&&editor.prompt?.owner_team_id&&team!==editor.prompt.owner_team_id&&<p className="field-hint">Changing the owning team requires a manager with approval rights in both teams. The prompt will remain in its current team until the proposal is approved.</p>}
-    {editor.mode!=='create'&&<label className="field">{editor.mode==='suggest'?'Why is this improvement useful?':'What changed in this version?'}<input value={note} onChange={e=>setNote(e.target.value)} placeholder="A short explanation for reviewers"/></label>}
-    {error&&<p className="form-error">{error}</p>}</div>
-    <div className="modal-footer"><div><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button disabled={saving} type="submit">{saving?'Saving…':editor.mode==='suggest'?'Submit suggestion':'Save prompt'} <ArrowRight size={16}/></Button></div></div>
-  </form></Modal>;
-}
-
-function PromptRow({prompt,version,active,onSelect,onCopy,onCombine,onDoubleClick,owner,likes,listified}:{prompt:Prompt;version:PromptVersion;active:boolean;onSelect:()=>void;onCopy:()=>void;onCombine:()=>void;onDoubleClick:()=>void;owner:string;likes:number;listified:boolean}){
-  return <div className={`prompt-row-shell ${listified?'prompt-row-shell-listified':''}`}>
-    {listified?<button type="button" className={`prompt-row prompt-row-listified ${active?'is-active':''}`} onClick={onSelect} onDoubleClick={onDoubleClick} aria-label={`Open ${version.title}`}><span className="row-listify-body"><strong className="row-title">{version.title}</strong><span className="row-listify-updated">Last updated: {when(prompt.updated_at)}</span></span></button>
-      :<button type="button" className={`prompt-row ${active?'is-active':''}`} onClick={onSelect} onDoubleClick={onDoubleClick}><IconTile category={version.category}/><span className="row-body"><span className="row-caps">{version.category}<span className="caps-dot">·</span>{owner}</span><strong className="row-title">{version.title}</strong><span className="row-description">{version.description||'A ready-to-use prompt shared with the library.'}</span><span className="row-byline">{when(prompt.updated_at)}<span className="row-likes" aria-label={`${likes} likes`}><Heart size={13}/>{likes}</span></span></span><ChevronRight size={18} className="row-arrow"/></button>}
-    <div className="row-clipboard-actions"><button type="button" className="row-copy-button" aria-label={`Copy ${version.title} to clipboard`} title="Copy prompt text" onClick={onCopy}><Copy size={15}/></button>
-      <button type="button" className="row-combine-button" aria-label={`Combine ${version.title} with clipboard`} title="Combine to Clipboard" onClick={onCombine}><ClipboardPlus size={15}/></button></div>
-  </div>;
-}
-
-function SharePromptEmailDialog({prompt,version,versions,senderEmail,senderName,onClose}:{
-  prompt:Prompt;version:PromptVersion;versions:PromptVersion[];senderEmail:string;senderName:string;onClose:()=>void;
-}){
-  const [recipientName,setRecipientName]=useState('');
-  const [tone,setTone]=useState<PromptEmailTone>('formal');
-  const [template,setTemplate]=useState<PromptEmailTemplate>('share');
-  const [versionId,setVersionId]=useState(version.id);
-  const [draft,setDraft]=useState<GeneratedPromptEmail|null>(null);
-  const [isOutdated,setIsOutdated]=useState(false);
-  const [error,setError]=useState('');
-  const [status,setStatus]=useState('');
-  const chosenVersion=versions.find(v=>v.id===versionId)||version;
-
-  function changeOptions(){
-    setStatus('');
-    setError('');
-    setIsOutdated(current=>current||!!draft);
-  }
-
-  function generatePreview(){
-    setError('');
-    setStatus('');
-    try{
-      const link=new URL(import.meta.env.BASE_URL,window.location.origin);
-      link.searchParams.set('prompt',prompt.id);
-      link.searchParams.set('from',senderEmail);
-      setDraft(generatePromptEmail({
-        recipientName,tone,template,title:chosenVersion.title,
-        description:chosenVersion.description,content:chosenVersion.content,
-        versionNumber:chosenVersion.version_number,
-        officialVersionNumber:version.version_number,
-        promptUrl:link.toString(),senderName,
-      }));
-      setIsOutdated(false);
-    }catch(err){setError(err instanceof Error?err.message:'Could not generate the preview.');}
-  }
-
-  async function copyDraft(){
-    if(!draft||!draft.body.trim())return;
-    setError('');setStatus('');
-    try{
-      await navigator.clipboard.writeText(draft.body);
-      setStatus('Email text copied to the clipboard.');
-    }catch{
-      setError('Clipboard access was blocked. Select the email message above and copy it manually.');
-    }
-  }
-
-  const previewState=isOutdated?'outdated':draft?'ready':'idle';
-  return <Modal onClose={onClose} wide>
-    <section className="share-email-dialog" aria-label="Generate email for prompt">
-      <div className="modal-header"><div><h2>Generate an email for the selected prompt</h2></div><button type="button" className="round-icon" aria-label="Close email generator" onClick={onClose}><X size={19}/></button></div>
-      <div className="share-email-body">
-        <div className="share-email-control-row">
-          <label className="field">Recipient name
-            <input autoFocus type="text" value={recipientName} onChange={e=>{setRecipientName(e.target.value);changeOptions()}} maxLength={100} placeholder="e.g. Alex" autoComplete="off"/>
-          </label>
-          <div className="field share-email-tone-field"><span>Tone</span><div className="share-email-tone" role="group" aria-label="Email tone">
-            <button type="button" aria-pressed={tone==='formal'} className={tone==='formal'?'is-selected':''} onClick={()=>{setTone('formal');changeOptions()}}>Formal</button>
-            <button type="button" aria-pressed={tone==='casual'} className={tone==='casual'?'is-selected':''} onClick={()=>{setTone('casual');changeOptions()}}>Casual</button>
-          </div></div>
-          <label className="field">Prompt version
-            <select value={versionId} onChange={e=>{setVersionId(e.target.value);changeOptions()}}>
-              {versions.map(v=><option value={v.id} key={v.id}>Version {v.version_number}{v.id===prompt.official_version_id?' · official':''}</option>)}
-            </select>
-          </label>
-          <div className="field share-email-preview-field"><span>Preview</span>
-            {previewState==='outdated'
-              ? <button type="button" className="share-email-refresh-button" onClick={generatePreview} disabled={!recipientName.trim()} title="Refresh preview" aria-label="Refresh preview"><RotateCcw size={16}/> Refresh preview</button>
-              : <button type="button" className={`share-email-preview-trigger ${previewState==='ready'?'is-active':''}`} title="Generate email preview" aria-label={previewState==='ready'?'Email preview generated':'Generate email preview'} onClick={generatePreview} disabled={!recipientName.trim()}><Check size={21}/></button>}
-          </div>
-        </div>
-        <div className="field share-email-template-field"><span>Template</span><div className="share-email-template-options" role="group" aria-label="Email template">
-          <button type="button" className={template==='share'?'is-selected':''} aria-pressed={template==='share'} onClick={()=>{setTemplate('share');changeOptions()}}>Share a prompt</button>
-          <button type="button" className={template==='feedback'?'is-selected':''} aria-pressed={template==='feedback'} onClick={()=>{setTemplate('feedback');changeOptions()}}>Ask for feedback</button>
-          <button type="button" className={template==='collaborate'?'is-selected':''} aria-pressed={template==='collaborate'} onClick={()=>{setTemplate('collaborate');changeOptions()}}>Invite to collaborate</button>
-        </div></div>
-        {draft&&<div className="share-email-editable">
-          {isOutdated&&<p className="share-email-outdated" role="status">Your options changed. Refresh the preview to update the email while keeping your current edits visible until then.</p>}
-          <label className="field">Email message<textarea rows={12} value={draft.body} onChange={e=>{setDraft(old=>old?{...old,body:e.target.value}:old);setStatus('')}} aria-label="Edit email message"/></label>
-        </div>}
-        {status&&<p className="share-email-status" role="status"><CheckCircle2 size={16}/>{status}</p>}
-        {error&&<p className="form-error" role="alert">{error}</p>}
-      </div>
-      <div className="modal-footer share-email-footer"><Button type="button" disabled={!draft||!draft.body.trim()} onClick={()=>void copyDraft()}><Copy size={16}/> Copy to Clipboard</Button></div>
-    </section>
-  </Modal>;
-}
-
-function PromptDetail({prompt,version,latest,history,owner,creator,lastEditor,canEdit,canSuggest,saved,onFavorite,onDuplicate,onShareEmail,onEdit,onSuggest,onLifecycle,onDelete,onShare,onRequest,onRestore,onArchive,onCompare,onDeprecate,onRecommend,recommended,isManager,readOnly,onClose}:{
-  prompt:Prompt;version:PromptVersion;latest:PromptVersion|undefined;history:PromptVersion[];owner:string;creator:string;lastEditor:string;canEdit:boolean;canSuggest:boolean;saved:boolean;
-  onFavorite:()=>void;onDuplicate:()=>void;onShareEmail:()=>void;onEdit:()=>void;onSuggest:()=>void;onLifecycle:()=>void;onDelete:()=>void;onShare:()=>void;onRequest:(id:string)=>void;onRestore:()=>void;onArchive:()=>void;onCompare:(id:string)=>void;onDeprecate:()=>void;onRecommend:()=>void;recommended:boolean;isManager:boolean;readOnly:boolean;onClose:()=>void;
-}){
-  const [variables,setVariables]=useState<Record<string,string>>({});const [copied,setCopied]=useState(false);const [historyOpen,setHistoryOpen]=useState(false);
-  const variableNames=varsIn(version.content);
-  const pending=!!latest && latest.id!==version.id && latest.approval_status==='under_review';
-  async function copyPrompt(){let output=version.content;for(const [k,v] of Object.entries(variables))if(v.trim())output=output.replaceAll(`{{${k}}}`,v.trim());try{await navigator.clipboard.writeText(output);setCopied(true);setTimeout(()=>setCopied(false),2200)}catch{saveFile('prompt.txt',output)}}
-  async function combinePrompt(){
-    let output=version.content;
-    for(const [k,v] of Object.entries(variables))if(v.trim())output=output.replaceAll(`{{${k}}}`,v.trim());
-    try{const previous=await navigator.clipboard.readText();await navigator.clipboard.writeText(combineClipboardText(previous,output));setCopied(true);setTimeout(()=>setCopied(false),2200)}
-    catch{window.alert('Unable to read the clipboard. Allow clipboard access for this site and try again. Your clipboard was not replaced by Promptfolio.')}
-  }
-  const exports={...version,owner,prompt_id:prompt.id};
-  return <div className="detail-inner" key={prompt.id+version.id}><div className="detail-header detail-header-minimal"><button className="mobile-back" onClick={onClose}><ArrowLeft size={17}/> Back</button></div>
-  <div className="detail-scroll"><div className="status-row"><Flag tone={prompt.lifecycle==='published'?'green':'amber'}>{prompt.lifecycle}</Flag><Flag>{owner}</Flag>{version.approval_status==='approved'&&<Flag tone="violet"><Check size={12}/> Approved</Flag>}</div>
-    <h2 className="detail-title">{version.title}</h2><p className="detail-description">{version.description}</p>
-    <div className="detail-version-toolbar"><span className="detail-version-meta">V{version.version_number} <span className="meta-bullet">·</span> {when(version.created_at)}</span><div className="detail-icon-actions"><button type="button" aria-label="Copy prompt" title="Copy prompt" onClick={copyPrompt}>{copied?<Check size={16}/>:<Copy size={16}/>}</button><button type="button" aria-label="Combine to Clipboard" title="Combine to Clipboard" onClick={combinePrompt}><ClipboardPlus size={16}/></button>{!readOnly&&<button type="button" aria-label="Send via email" title="Send via email" onClick={onShareEmail}><Mail size={16}/></button>}{canEdit&&!prompt.owner_team_id?<button type="button" aria-label="Edit prompt" title="Edit prompt" onClick={onEdit}><Pencil size={16}/></button>:canSuggest?<button type="button" aria-label="Suggest an edit" title="Suggest an edit" onClick={onSuggest}><Pencil size={16}/></button>:null}{!readOnly&&<button type="button" className={saved?'saved':''} aria-label={saved?'Remove favorite':'Add to favorites'} title={saved?'Remove favorite':'Add to favorites'} onClick={onFavorite}><Heart size={16} fill={saved?'currentColor':'none'}/></button>}</div></div>
-    {pending&&<div className="review-alert"><Clock3 size={16}/><span>A newer version is awaiting approval. This is the current official version.</span></div>}
-    <div className="detail-section-label"><span>The prompt</span></div><pre className="code-preview">{version.content}</pre>
-    {variableNames.length>0&&<div className="variables"><div className="detail-section-label"><span>Customize the prompt</span><span>{variableNames.length} field{variableNames.length===1?'':'s'}</span></div><div className="variables-grid">{variableNames.map(n=><label className="field" key={n}>{labelize(n)}<input value={variables[n]||''} onChange={e=>setVariables(v=>({...v,[n]:e.target.value}))} placeholder={`Enter ${n.replaceAll('_',' ')}`}/></label>)}</div></div>}
-    {version.usage_instructions&&<><div className="detail-section-label">How to use</div><p className="detail-body-copy">{version.usage_instructions}</p></>}
-    {version.example_inputs&&<><div className="detail-section-label">Example input</div><p className="detail-body-copy">{version.example_inputs}</p></>}
-    {version.expected_outputs&&<><div className="detail-section-label">Expected output</div><p className="detail-body-copy">{version.expected_outputs}</p></>}
-    <div className="tag-row">{version.tags.map(t=><span className="tag" key={t}>#{t}</span>)}{version.compatible_models.map(m=><span className="tag tag-model" key={m}>{m}</span>)}</div>
-    <h3 className="detail-section-label detail-information-heading">Additional information</h3>
-    <div className="author-line author-line-before-history"><Avatar name={creator} small/><span className="author-line-meta">{history.length>1?<><span>Created by: <strong>{creator}</strong></span><span className="meta-bullet">·</span><span>Last updated by: <strong>{lastEditor}</strong></span></>:<span>Created by: <strong>{creator}</strong></span>}</span></div>
-    {canEdit&&<><button className="disclosure" onClick={()=>setHistoryOpen(x=>!x)}><FileClock size={17}/> Version history <span>{history.length}</span><ChevronDown size={16} className={historyOpen?'rotated':''}/></button>{historyOpen&&<div className="history-list">{history.map(v=><div className="history-item" key={v.id}><span><strong>Version {v.version_number}</strong><small>{v.change_note||'No change note'} · {when(v.created_at)}</small></span><span className="history-right"><button className="text-button" onClick={()=>onCompare(v.id)}>Compare</button><Flag tone={v.approval_status==='approved'?'green':v.approval_status==='under_review'?'amber':'neutral'}>{v.id===prompt.official_version_id?'Official · ':''}{v.approval_status.replace('_',' ')}</Flag>{v.id===latest?.id&&v.approval_status==='experimental'&&prompt.owner_team_id&&<button className="text-button" onClick={()=>onRequest(v.id)}>Request review</button>}</span></div>)}</div>}</>}
-    <h3 className="detail-section-label detail-utilities-heading">Additional functionality</h3>
-    <div className="detail-utilities"><button type="button" onClick={()=>saveFile(`${sanitize(version.title)}.json`,JSON.stringify(exports,null,2),'application/json')}><ArrowUpRight size={14}/> Export JSON</button><button type="button" onClick={()=>saveFile(`${sanitize(version.title)}.md`,`# ${version.title}\n\n${version.description}\n\n${version.content}\n`,'text/markdown')}><ArrowUpRight size={14}/> Export Markdown</button>{!readOnly&&<button type="button" onClick={onDuplicate}><Clipboard size={14}/> Duplicate</button>}{canEdit&&(!prompt.owner_team_id||isManager)&&<><button onClick={onLifecycle}>{prompt.lifecycle==='draft'?'Publish':prompt.lifecycle==='published'?'Move to draft':'Republish'}</button>{!!prompt.owner_user_id&&<button onClick={onShare}>Share to team</button>}{prompt.lifecycle!=='archived'&&<button onClick={onArchive}>Archive</button>}{isManager&&prompt.owner_team_id&&<><button onClick={onRecommend}>{recommended?'Remove recommendation':'Recommend'}</button><button className="danger-text" onClick={onDeprecate}>Deprecate</button></>}{prompt.deleted_at?<button onClick={onRestore}>Restore</button>:<button className="danger-text" onClick={onDelete}>Move to trash</button>}</>}</div>
-  </div></div>;
-}
 
 export default function App(){
   const [user,setUser]=useState<Identity|null>(null);
@@ -387,7 +38,7 @@ export default function App(){
   const [likeCounts,setLikeCounts]=useState<Record<string,number>>({});
   const [data,setData]=useState<AppData>(emptyData());
   const [ready,setReady]=useState(false); const [busy,setBusy]=useState(false);
-  const [toast,setToast]=useState(''); const [view,setView]=useState<View>('explore');
+  const [toast,setToast]=useState(''); const [view,setView,replaceView]=useHashRoute();
   const [filter,setFilter]=useState<Filter>('All prompts');const [query,setQuery]=useState('');
   // Explore tabs show their prompt lists directly.
   const [listified,setListified]=useState(false);
@@ -699,14 +350,40 @@ export default function App(){
     }
     notify(`Exported ${entries.length} prompt${entries.length===1?'':'s'} as ${format==='json'?'JSON':'Markdown'}.`);
   }
+  // Back/Forward and manual hash navigation should reset transient discovery state,
+  // just like clicking an app navigation tab. Programmatic setView calls do not
+  // emit these browser events, preserving selection from shared-prompt links.
+  useEffect(()=>{
+    const onHistoryNavigation=()=>{
+      resetDiscovery();
+      if(viewFromHash(window.location.hash)==='mine')setMineTrash(false);
+    };
+    window.addEventListener('popstate',onHistoryNavigation);
+    window.addEventListener('hashchange',onHistoryNavigation);
+    return()=>{
+      window.removeEventListener('popstate',onHistoryNavigation);
+      window.removeEventListener('hashchange',onHistoryNavigation);
+    };
+  },[]);
+  // A read-only guest cannot navigate to signed-in sections; never reveal
+  // privileged sections to an account without the admin role.
+  useEffect(()=>{
+    if(guest && isAuthRoute(view)){setGuest(false);setData(emptyData());setSelectedId(null)}
+    else if(guest && view!=='explore')replaceView('explore');
+    else if(user && view==='admin' && !isAdmin && data.profiles.some(p=>p.id===user.id))replaceView('explore');
+  },[guest,user,view,isAdmin,data.profiles,replaceView]);
+  // Auth URLs are public entry points, not authenticated workspace screens.
+  useEffect(()=>{
+    if(user && isAuthRoute(view))replaceView('explore');
+  },[user,view,replaceView]);
   function navigate(v:View){setView(v);resetDiscovery();if(v==='mine')setMineTrash(false);}
   if(!ready)return <div className="boot"><Logo/><div className="loading-line"/></div>;
   if(user&&(recoveryMode||blocked?.must_change_password))return <div className="session-gate"><Logo/><form onSubmit={async e=>{e.preventDefault();try{if(blocked?.must_change_password)await accountAdmin('complete_temp_password',{password:newPassword});else await updatePassword(newPassword);setNewPassword('');setRecoveryMode(false);await reload();notify('Password updated.');}catch(err){notify(err instanceof Error?err.message:'Password update failed');}}}><h2>{blocked?.must_change_password?'Change your temporary password':'Reset your password'}</h2><p>{blocked?.must_change_password?'A personal password is required before you can access company prompts.':'Choose your new account password.'}</p><label className="field">New password<input type="password" required minLength={12} value={newPassword} onChange={e=>setNewPassword(e.target.value)} autoComplete="new-password"/></label><Button type="submit">Update password <ArrowRight size={16}/></Button></form>{toast&&<div className="toast">{toast}</div>}</div>;
-  return <div className="app"><header className="topbar"><div className="container topbar-in"><a href={import.meta.env.BASE_URL} className="brand-link" onClick={e=>{e.preventDefault();navigate('explore')}}><Logo/></a>
+  return <div className="app"><header className="topbar"><div className="container topbar-in"><a href={`${import.meta.env.BASE_URL}#/${user||guest?'explore':'sign-in'}`} className="brand-link" onClick={e=>{e.preventDefault();if(user||guest)navigate('explore');else setView('sign-in')}}><Logo/></a>
     {(user||guest)&&<nav className="main-nav" aria-label="Main navigation">{(guest?[['explore','Explore']] as [View,string][]:[['explore','Explore'],['mine','My prompts'],['teams','Teams'],['reviews','Reviews']] as [View,string][]).map(([v,t])=><button key={v} className={`nav-link ${view===v?'active':''}`} onClick={()=>navigate(v)}>{t}{v==='reviews'&&reviewQueue.length>0&&<span className="nav-bubble">{reviewQueue.length}</span>}</button>)}{isAdmin&&<button className={`nav-link ${view==='admin'?'active':''}`} onClick={()=>navigate('admin')}>Admin</button>}</nav>}
-    <div className="topbar-right">{user&&<button type="button" className="feedback-trigger" aria-label="Report an issue or suggest an improvement" title="Report an issue / Make a suggestion" onClick={()=>setFeedbackOpen(true)}><MessageSquarePlus size={17}/></button>}<button type="button" className="theme-toggle" aria-label={darkMode?'Switch to light mode':'Switch to dark mode'} title={darkMode?'Switch to light mode':'Switch to dark mode'} aria-pressed={darkMode} onClick={()=>setDarkMode(v=>!v)}>{darkMode?<Sun size={17}/>:<Moon size={17}/>}</button>{user?<><button className="notice-trigger" aria-label="Open notifications" onClick={()=>setNoticeOpen(true)}><Bell size={17}/>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length>0&&<b>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length}</b>}</button><Button onClick={()=>setEditor({mode:'create'})} className="top-new"><Plus size={17}/> New prompt</Button><div className="account-wrap" ref={accountMenuRef}><button type="button" ref={accountTriggerRef} className="profile-button" title="Open account menu" aria-expanded={accountOpen} aria-haspopup="true" onClick={()=>setAccountOpen(s=>!s)}><Avatar name={person(user.id)}/><ChevronDown size={14}/></button>{accountOpen&&<div className="account-menu"><div className="account-menu-head"><strong>{person(user.id)}</strong><span>{user.email}</span></div><div className="menu-separator"/><button onClick={()=>{setSettingsOpen(true);setAccountOpen(false)}}><Settings2 size={16}/> Settings</button><button onClick={()=>{navigate('changelog');setAccountOpen(false)}} aria-current={view==='changelog'?'page':undefined}><FileClock size={16}/> Changelog</button><button onClick={async()=>{if(!isDemo)await signOut();setUser(null);setData(emptyData());setAccountOpen(false);setSelectedId(null)}}><LogOut size={16}/> Sign out</button></div>}</div></>:guest?<Button variant="outline" onClick={()=>{setGuest(false);setData(emptyData());setSelectedId(null)}}>Sign in <ArrowRight size={15}/></Button>:null}</div></div></header>
+    <div className="topbar-right">{user&&<button type="button" className="feedback-trigger" aria-label="Report an issue or suggest an improvement" title="Report an issue / Make a suggestion" onClick={()=>setFeedbackOpen(true)}><MessageSquarePlus size={17}/></button>}<button type="button" className="theme-toggle" aria-label={darkMode?'Switch to light mode':'Switch to dark mode'} title={darkMode?'Switch to light mode':'Switch to dark mode'} aria-pressed={darkMode} onClick={()=>setDarkMode(v=>!v)}>{darkMode?<Sun size={17}/>:<Moon size={17}/>}</button>{user?<><button className="notice-trigger" aria-label="Open notifications" onClick={()=>setNoticeOpen(true)}><Bell size={17}/>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length>0&&<b>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length}</b>}</button><Button onClick={()=>setEditor({mode:'create'})} className="top-new"><Plus size={17}/> New prompt</Button><div className="account-wrap" ref={accountMenuRef}><button type="button" ref={accountTriggerRef} className="profile-button" title="Open account menu" aria-expanded={accountOpen} aria-haspopup="true" onClick={()=>setAccountOpen(s=>!s)}><Avatar name={person(user.id)}/><ChevronDown size={14}/></button>{accountOpen&&<div className="account-menu"><div className="account-menu-head"><strong>{person(user.id)}</strong><span>{user.email}</span></div><div className="menu-separator"/><button onClick={()=>{setSettingsOpen(true);setAccountOpen(false)}}><Settings2 size={16}/> Settings</button><button onClick={()=>{navigate('changelog');setAccountOpen(false)}} aria-current={view==='changelog'?'page':undefined}><FileClock size={16}/> Changelog</button><button onClick={async()=>{if(!isDemo)await signOut();setUser(null);setData(emptyData());setAccountOpen(false);setSelectedId(null);setView('sign-in')}}><LogOut size={16}/> Sign out</button></div>}</div></>:guest?<Button variant="outline" onClick={()=>{setGuest(false);setData(emptyData());setSelectedId(null);setView('sign-in')}}>Sign in <ArrowRight size={15}/></Button>:null}</div></div></header>
 
-  {!user&&!guest?<main className="container"><Auth onLogin={async u=>{setGuest(false);setUser(u);await reload()}} onDemo={async()=>{setUser(demoIdentity);await reload()}} onGuest={()=>{setData(guestSampleData());setGuest(true);setView('explore');setSelectedId(null)}} busy={busy} message={notify} onNotice={notify}/></main>:<main className="container app-main">
+  {!user&&(!guest||isAuthRoute(view))?<main className="container"><Auth authRoute={view==='sign-up'?'signup':'login'} onModeChange={mode=>setView(mode==='signup'?'sign-up':'sign-in')} onLogin={async u=>{setGuest(false);setUser(u);await reload()}} onDemo={async()=>{setGuest(false);setUser(demoIdentity);await reload()}} onGuest={()=>{setData(guestSampleData());setGuest(true);setView('explore');setSelectedId(null)}} busy={busy} message={notify} onNotice={notify}/></main>:<main className="container app-main">
   {hasExplore?<><section className="hero"><div><h1>{view==='mine'?<>Manage your prompts<span className="accent-dot">.</span></>:<>Collaborative prompt portfolio<span className="accent-dot">.</span></>}</h1><p>{view==='mine'?'Browse the prompts you own or originally created, including those shared with your teams.':guest?'Preview sample prompts without an account. Sign in for your team library.':'Discover what others have built, adapt it to your work, and share what works.'}</p></div></section>
   <div className="filters-bar"><div className="filter-list">{view==='explore'?(['All prompts','Personal','My teams','Other teams','Favorites'] as Filter[]).filter(x=>!guest||x==='All prompts').map(x=><button className={`filter-chip ${filter===x?'selected':''}`} key={x} onClick={()=>{setFilter(x);resetDiscovery()}}>{x}</button>):<><button className={`filter-chip ${!mineTrash?'selected':''}`} onClick={()=>setMineTrash(false)}>My library</button><button className={`filter-chip ${mineTrash?'selected':''}`} onClick={()=>setMineTrash(true)}>Trash</button></>}</div>{view==='mine'&&<button className="import-control" onClick={()=>importRef.current?.click()}><Plus size={13}/> Import prompt</button>}</div>
 
@@ -791,70 +468,6 @@ export default function App(){
   </div>;
 }
 
-function CompareVersions({data,comparison,onClose,onRestore,note,setNote}:{data:AppData;comparison:{prompt:Prompt;versionId:string};onClose:()=>void;onRestore:(id:string)=>Promise<void>;note:string;setNote:(note:string)=>void}){
-  const versions=data.versions.filter(v=>v.prompt_id===comparison.prompt.id).sort((a,b)=>b.version_number-a.version_number);
-  const [left,setLeft]=useState(comparison.prompt.official_version_id||versions[0]?.id||'');
-  const [right,setRight]=useState(comparison.versionId);
-  const a=versions.find(v=>v.id===left),b=versions.find(v=>v.id===right);
-  const fields:(keyof PromptBody)[]=['title','description','content','category','tags','usage_instructions','example_inputs','expected_outputs','compatible_models'];
-  return <Modal wide onClose={onClose}><div className="confirm-modal"><div className="modal-header"><div><h2>Compare and restore</h2><p>For team prompts, restoring an old version creates a suggestion for manager review. Personal prompts can be restored directly.</p></div><button className="round-icon" onClick={onClose}><X size={18}/></button></div><div className="field-grid"><label className="field">Base version<select value={left} onChange={e=>setLeft(e.target.value)}>{versions.map(v=><option key={v.id} value={v.id}>v{v.version_number} · {v.approval_status}</option>)}</select></label><label className="field">Compare version<select value={right} onChange={e=>setRight(e.target.value)}>{versions.map(v=><option key={v.id} value={v.id}>v{v.version_number} · {v.approval_status}</option>)}</select></label></div><div className="version-diff">{fields.map(k=>{const one=Array.isArray(a?.[k])?(a?.[k] as string[]).join(', '):String(a?.[k]||'');const two=Array.isArray(b?.[k])?(b?.[k] as string[]).join(', '):String(b?.[k]||'');return <div key={k}><strong>{labelize(k)} {one!==two&&<Flag tone="amber">Changed</Flag>}</strong><div className="compare-grid"><pre>{one||'—'}</pre><pre>{two||'—'}</pre></div></div>})}</div><label className="field">Restoration note<input value={note} onChange={e=>setNote(e.target.value)} placeholder="Reason for restoring this version"/></label><div className="confirm-actions"><Button variant="outline" onClick={onClose}>Close</Button><Button onClick={()=>onRestore(right)}><RotateCcw size={15}/> {comparison.prompt.owner_team_id?'Suggest restoration':'Restore selected version'}</Button></div></div></Modal>;
-}
 
-function AdminCategories({categories,busy,onRename}:{categories:string[];busy:boolean;onRename:(oldName:string,newName:string)=>Promise<boolean>}){
-  const [selected,setSelected]=useState('');
-  const [newName,setNewName]=useState('');
-  const current=categories.includes(selected)?selected:'';
-  const candidate=newName.trim();
-  async function rename(e:FormEvent){
-    e.preventDefault();
-    if(!current||candidate.length<2||candidate.length>70||candidate===current)return;
-    const success=await onRename(current,candidate);
-    if(success){setSelected(candidate);setNewName(candidate);}
-  }
-  return <section className="admin-card admin-category-management">
-    <h3>Manage the categories.</h3>
-    <p>Choose a category to rename it across existing prompts and versions.</p>
-    <form className="admin-category-simple-form" onSubmit={rename}>
-      <label className="field">Category
-        <select aria-label="Select a category to rename" value={current} onChange={e=>{setSelected(e.target.value);setNewName(e.target.value)}}>
-          <option value="">Select a category</option>
-          {[...categories].sort((a,b)=>a.localeCompare(b)).map(name=><option key={name} value={name}>{name}</option>)}
-        </select>
-      </label>
-      {current&&<><label className="field">New category name
-        <input aria-label="New category name" required minLength={2} maxLength={70} value={newName} onChange={e=>setNewName(e.target.value)}/>
-      </label>
-      <Button type="submit" variant="outline" disabled={busy||candidate.length<2||candidate.length>70||candidate===current}>Rename category</Button></>}
-    </form>
-  </section>;
-}
 
-function AdminAdvanced({data,busy,executeAction,onIdentity,onRefresh,notify,onRenameTeam}:{data:AppData;busy:boolean;executeAction:(name:string,args:Record<string,unknown>)=>Promise<unknown>;onIdentity:typeof accountAdmin;onRefresh:()=>Promise<void>;notify:(s:string)=>void;onRenameTeam:(team:{id:string;name:string})=>void}){
- const [email,setEmail]=useState('');const [displayName,setDisplayName]=useState('');const [credential,setCredential]=useState<{password:string;expires:string}|null>(null);
- const [target,setTarget]=useState('');const [retention,setRetention]=useState(data.settings[0]?.retention_days||30);
- const [hours,setHours]=useState(data.settings[0]?.temporary_password_hours||48);
- const [working,setWorking]=useState(false);
- async function act(action:string,payload:Record<string,unknown>){setWorking(true);try{const r=await onIdentity(action,payload);if(r.temporary_password)setCredential({password:r.temporary_password,expires:r.expires_at||''});await onRefresh();notify('Identity operation completed.')}catch(e){notify(e instanceof Error?e.message:'Account operation failed')}finally{setWorking(false)}}
- return <div className="admin-extras"><section className="admin-card"><h3>Manage the accounts.</h3><p>Credentials are generated server-side and displayed once.</p><form onSubmit={async e=>{e.preventDefault();await act('create_user',{email,display_name:displayName});setEmail('');setDisplayName('')}}><label className="field">Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="colleague@company.com"/></label><label className="field">Display name<input value={displayName} onChange={e=>setDisplayName(e.target.value)} required/></label><Button type="submit" disabled={busy||working}>Create user with temporary password</Button></form>
- <label className="field">Existing user<select value={target} onChange={e=>setTarget(e.target.value)}><option value="">Select an account</option>{data.profiles.map(pr=><option key={pr.id} value={pr.id}>{pr.display_name} ({pr.email})</option>)}</select></label><div className="admin-actions"><Button variant="outline" disabled={!target||working} onClick={()=>act('reset_temp_password',{user_id:target})}>Reset password</Button><Button variant="outline" disabled={!target||working} onClick={()=>act('disable_user',{user_id:target})}>Disable</Button><Button variant="outline" disabled={!target||working} onClick={()=>act('enable_user',{user_id:target})}>Reactivate</Button></div>
- {credential&&<div className="one-time-secret"><strong>Temporary password — shown once</strong><code>{credential.password}</code><small>Expires: {credential.expires||'Demo only'}</small><Button variant="outline" onClick={()=>{void navigator.clipboard.writeText(credential.password);setCredential(null)}}>Copy and hide</Button><button className="text-button" onClick={()=>setCredential(null)}>Hide now</button></div>}</section>
- <section className="admin-card"><h3>Manage the portfolio.</h3><label className="field">Deleted prompt retention (days)<input type="number" min={1} max={365} value={retention} onChange={e=>setRetention(Number(e.target.value))}/></label><label className="field">Temporary password validity (hours)<input type="number" min={1} max={168} value={hours} onChange={e=>setHours(Number(e.target.value))}/></label><Button disabled={busy} onClick={()=>executeAction('update_app_settings',{days:retention,password_hours:hours})}>Save settings</Button><div className="divider-line"/><p>Removing a team revokes its memberships and archives its existing prompts while keeping audit history.</p><div className="admin-team-actions">{data.teams.map(t=><div key={t.id}><strong>{t.name}</strong><div className="admin-team-buttons"><Button variant="outline" disabled={busy} onClick={()=>onRenameTeam(t)}><Pencil size={14}/> Rename</Button><Button variant="outline" disabled={busy} onClick={()=>{if(window.confirm(`Remove ${t.name}? Members will lose access and prompts will be archived.`))void executeAction('remove_team',{tid:t.id})}}>Remove team</Button></div></div>)}</div></section></div>
-}
 
-function TeamCard({team,members,profiles,prompts,versions,manager,onRename,onMember}:{team:{id:string;name:string;description:string};members:Member[];profiles:AppData['profiles'];prompts:Prompt[];versions:PromptVersion[];manager:boolean;onRename:()=>void;onMember:(email:string,action:'add'|'remove')=>Promise<void>}){
-  const [open,setOpen]=useState(false);const [email,setEmail]=useState('');
-  const published=prompts.filter(p=>p.lifecycle==='published').length;
-  const drafts=prompts.filter(p=>p.lifecycle==='draft').length;
-  const approved=prompts.filter(p=>versions.some(v=>v.id===p.official_version_id&&v.approval_status==='approved')).length;
-  const categoryCounts=new Map<string,number>();
-  for(const p of prompts){const v=versions.find(v=>v.id===p.official_version_id)||versions.find(v=>v.id===p.latest_version_id);const category=v?.category||'General';categoryCounts.set(category,(categoryCounts.get(category)||0)+1)}
-  const categoriesByCount=[...categoryCounts.entries()].sort((a,b)=>b[1]-a[1]);
-  return <section className="team-card"><div className="team-card-header"><div className="team-icon"><Users size={21}/></div><div><div className="team-name-row"><h3>{team.name}</h3>{manager&&<button type="button" className="team-rename-trigger" aria-label={`Rename ${team.name}`} title="Rename team" onClick={onRename}><Pencil size={15}/></button>}</div><p>{team.description}</p></div><Flag>{members.length} members</Flag></div>
-  <div className="team-stats" aria-label={`${team.name} prompt statistics`}><div><strong>{prompts.length}</strong><span>Prompts</span></div><div><strong>{published}</strong><span>Published</span></div><div><strong>{drafts}</strong><span>Drafts</span></div><div><strong>{approved}</strong><span>Approved</span></div></div>
-  <div className="team-category-section"><div className="team-section-title">Prompts by category</div>{categoriesByCount.length?<div className="team-categories">{categoriesByCount.map(([category,count])=><div className="team-category" key={category}><div className="team-category-label"><span>{category}</span><strong>{count}</strong></div><div className="team-category-track"><span style={{width:`${count/Math.max(prompts.length,1)*100}%`}}/></div></div>)}</div>:<p className="team-no-prompts">No prompts in this team yet.</p>}</div>
-  <div className="team-section-title team-members-title">Members</div><div className="team-members">{members.map(m=>{const profile=profiles.find(p=>p.id===m.user_id);return <div className="member" key={m.user_id}><Avatar name={profile?.display_name||'Member'} small/><span><strong>{profile?.display_name||'Member'}</strong><small>{profile?.email||''}</small></span>{m.role==='manager'&&<Flag tone="violet">Manager</Flag>}{manager&&m.role!=='manager'&&<button title="Remove member" className="member-remove" onClick={()=>onMember(profile?.email||'','remove')}><X size={15}/></button>}</div>})}</div>{manager&&<><button className="add-member-toggle" onClick={()=>setOpen(s=>!s)}><Plus size={17}/> Add a team member</button>{open&&<form className="inline-form" onSubmit={async e=>{e.preventDefault();await onMember(email,'add');setEmail('');setOpen(false)}}><input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="colleague@company.com"/><Button type="submit">Add member</Button></form>}</>}</section>;
-}
-function AdminSection({data,busy,onCreate,onManager}:{data:AppData;busy:boolean;onCreate:(team:string,description:string,email:string)=>Promise<void>;onManager:(team:string,user:string,promote:boolean)=>Promise<unknown>}){
-  const [name,setName]=useState('');const [description,setDescription]=useState('');const [email,setEmail]=useState('');
-  return <div className="admin-layout"><section className="admin-card"><h3>Create a team.</h3><p>Create a team and appoint its manager. The manager must already have an account.</p><form onSubmit={async e=>{e.preventDefault();await onCreate(name,description,email);setName('');setDescription('');setEmail('')}}><label className="field">Team name<input required minLength={2} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Finance"/></label><label className="field">Description<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="What is this team for?"/></label><label className="field">Manager email<input required type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="manager@company.com"/></label><Button type="submit" disabled={busy}>Create team <ArrowRight size={15}/></Button></form></section><section className="admin-card"><h3>Manage approvals.</h3><p>Team managers can review official versions and improvement proposals.</p><div className="admin-member-list">{data.members.map(m=><div key={`${m.user_id}-${m.team_id}`}><span><strong>{data.profiles.find(p=>p.id===m.user_id)?.display_name||'User'}</strong><small>{data.teams.find(t=>t.id===m.team_id)?.name} · {m.role}</small></span><Button variant="outline" onClick={()=>onManager(m.team_id,m.user_id,m.role!=='manager')}>{m.role==='manager'?'Demote':'Make manager'}</Button></div>)}</div></section></div>;
-}

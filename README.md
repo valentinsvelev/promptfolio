@@ -14,7 +14,7 @@ A collaborative portfolio for creating, discovering, and improving AI prompts.
 
 ## Tech stack
 
-React · TypeScript · Vite · Supabase (Auth + PostgreSQL)
+React · TypeScript · Vite · Node.js · Supabase (Auth + PostgreSQL) · Playwright (Chromium)
 
 ## Run locally
 

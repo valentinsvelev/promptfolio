@@ -6,4 +6,8 @@ dist
 !.env.example
 *.log
 commands.txt
+*.zip
 supabase/.temp
+*.tsbuildinfo
+playwright-report/
+test-results/

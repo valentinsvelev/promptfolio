@@ -1,8 +1,14 @@
 /* Source and sample-data assertions for the new UX. Does not replace browser tests. */
 const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm'),ts=require('typescript');
-const app=fs.readFileSync('src/App.tsx','utf8');const css=fs.readFileSync('src/styles.css','utf8');
+// Temporary source-contract compatibility: include newly extracted component sources.
+// Keep the core App.tsx separate for whole-file order assertions.
+const appEntry=fs.readFileSync('src/App.tsx','utf8');
+const componentFiles=["src/components/ui/index.tsx", "src/utils/format.ts", "src/components/account/AccountSettings.tsx", "src/components/changelog/ChangelogPage.tsx", "src/components/teams/RenameTeamDialog.tsx", "src/components/feedback/FeedbackDialog.tsx", "src/components/auth/Auth.tsx", "src/components/prompts/PromptEditor.tsx", "src/components/email/SharePromptEmailDialog.tsx", "src/components/ui/LibraryPrimitives.tsx", "src/components/prompts/CategoryIcon.tsx", "src/components/prompts/MarkdownPreview.tsx", "src/components/prompts/PromptRow.tsx", "src/components/prompts/PromptDetail.tsx", "src/components/prompts/CompareVersions.tsx", "src/components/admin/AdminCategories.tsx", "src/components/admin/AdminAdvanced.tsx", "src/components/teams/TeamCard.tsx", "src/components/admin/AdminSection.tsx"];
+const componentSource=Object.fromEntries(componentFiles.map(path=>[path,fs.readFileSync(path,'utf8')]));
+const app=appEntry+'\n'+componentFiles.map(path=>componentSource[path]).join('\n');
+const css=fs.readFileSync('src/styles/global.css','utf8');
 const sql=fs.readFileSync('supabase/003_guest_and_likes.sql','utf8');
-for(const [name,text,opts] of [['App.tsx',app,{jsx:ts.JsxEmit.ReactJSX}],['api.ts',fs.readFileSync('src/api.ts','utf8'),{}]]){
+for(const [name,text,opts] of [['App.tsx',appEntry,{jsx:ts.JsxEmit.ReactJSX}],...componentFiles.map(path=>[path,componentSource[path],{jsx:ts.JsxEmit.ReactJSX}]),['api.ts',fs.readFileSync('src/services/api.ts','utf8'),{}]]){
  const result=ts.transpileModule(text,{fileName:name,reportDiagnostics:true,compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,...opts}});
  assert.equal((result.diagnostics||[]).filter(d=>d.category===ts.DiagnosticCategory.Error).length,0,`${name} must parse`);
 }
@@ -80,15 +86,13 @@ assert.doesNotMatch(css,/\.prompt-quick-filters\s*\{[^}]*overflow-x:\s*auto/s);
 console.log('PASS: direct category and team quick filters');
 
 // 011: Team assignment and GitHub feedback must be server-mediated.
-const apiSource=fs.readFileSync('src/api.ts','utf8');
+const apiSource=fs.readFileSync('src/services/api.ts','utf8');
 const migration011=fs.readFileSync('supabase/011_team_transfer_and_feedback.sql','utf8');
 const edgeSource=fs.readFileSync('supabase/functions/create-github-issue/index.ts','utf8');
 // Create, Edit and Suggest: Title / Category / Team, then Tags / AI models.
 assert.match(app,/editor-three-column-fields/);
 assert.match(app,/editor-secondary-fields/);
-const editorStart = app.indexOf('function PromptEditor(');
-const editorEnd = app.indexOf('function PromptRow(', editorStart);
-const editorSource = app.slice(editorStart, editorEnd);
+const editorSource = componentSource['src/components/prompts/PromptEditor.tsx'];
 const firstRow = editorSource.slice(editorSource.indexOf('className="field-grid editor-primary-fields'), editorSource.indexOf('className="field-grid editor-secondary-fields'));
 const secondRow = editorSource.slice(editorSource.indexOf('className="field-grid editor-secondary-fields'), editorSource.indexOf('Prompt text <strong'));
 assert.ok(firstRow.indexOf('Prompt title') < firstRow.indexOf('Category') && firstRow.indexOf('Category') < firstRow.indexOf('Assign to team'), 'First row should be title, category, team');
@@ -125,8 +129,8 @@ assert.match(css,/\.prompt-quick-filter-subcategories\s*\{/);
 console.log('PASS: Favorites categories and team-scoped secondary quick filters');
 
 // Settings changelog, non-destructive clipboard combination, email link and ownership.
-const changelogSrc=fs.readFileSync('src/changelog.ts','utf8');
-const sharingSrc=fs.readFileSync('src/sharing.ts','utf8');
+const changelogSrc=fs.readFileSync('src/components/changelog/changelog.ts','utf8');
+const sharingSrc=fs.readFileSync('src/utils/sharing.ts','utf8');
 assert.match(app,/function ChangelogPage\(/);
 assert.match(app,/navigate\('changelog'\)/);
 assert.match(app,/aria-label="Promptfolio changelog"/);
@@ -141,10 +145,8 @@ assert.match(app,/navigator\.clipboard\.readText\(\)/);
 assert.match(app,/SharePromptEmailDialog/);
 // The email dialog changes its preview button's accessible label based on state.
 // Match the implemented behavior, not a single static JSX attribute spelling.
-const emailDialogStart=app.indexOf('function SharePromptEmailDialog(');
-const emailDialogEnd=app.indexOf('function PromptDetail(',emailDialogStart);
-assert.ok(emailDialogStart>=0&&emailDialogEnd>emailDialogStart,'Email dialog component must exist');
-const emailDialogSource=app.slice(emailDialogStart,emailDialogEnd);
+const emailDialogSource=componentSource['src/components/email/SharePromptEmailDialog.tsx'];
+assert.ok(emailDialogSource.includes('function SharePromptEmailDialog('),'Email dialog component must exist');
 assert.match(emailDialogSource,/aria-label=\{[^}]*'Email preview generated'[^}]*'Generate email preview'[^}]*\}/);
 assert.match(emailDialogSource,/aria-label="Refresh preview"/);
 // The current composer lets users edit the email body; the generated subject is
@@ -157,7 +159,7 @@ assert.match(app,/versions=\{history\(emailSharePrompt\.id\)\}/);
 assert.match(emailDialogSource,/navigator\.clipboard\.writeText\(draft\.body\)/);
 assert.doesNotMatch(app,/Open email app/);
 assert.doesNotMatch(app,/window\.location\.href=prepared\.mailto/);
-const emailTemplateSrc=fs.readFileSync('src/emailTemplates.ts','utf8');
+const emailTemplateSrc=fs.readFileSync('src/components/email/emailTemplates.ts','utf8');
 const emailTemplateJs=ts.transpileModule(emailTemplateSrc,{fileName:'emailTemplates.ts',compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const emailTemplateModule={exports:{}};
 vm.runInNewContext(`(function(module,exports){${emailTemplateJs}\n})`)(emailTemplateModule,emailTemplateModule.exports);

@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const app = fs.readFileSync('src/App.tsx', 'utf8');
-const css = fs.readFileSync('src/styles.css', 'utf8');
+const css = fs.readFileSync('src/styles/global.css', 'utf8');
 assert.match(app, /\[searchExpanded,setSearchExpanded\]=useState\(false\)/);
 assert.match(app, /\[advancedOpen,setAdvancedOpen\]=useState\(false\)/);
 assert.match(app, /keyword-search-trigger/);

@@ -2,8 +2,8 @@
    Run after npm install: node test/demo-smoke.cjs */
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const ts=require('typescript');
-const code=ts.transpileModule(fs.readFileSync('src/api.ts','utf8').replaceAll('import.meta.env','({})'),{
-  fileName:'src/api.ts',compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},reportDiagnostics:true
+const code=ts.transpileModule(fs.readFileSync('src/services/api.ts','utf8').replaceAll('import.meta.env','({})'),{
+  fileName:'src/services/api.ts',compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},reportDiagnostics:true
 }).outputText;
 const memory=new Map();const apiExports={};
 const context={exports:apiExports,require:(n)=> n==='@supabase/supabase-js'?{createClient:()=>{throw Error('Demo must not initialise client')}}:require(n),

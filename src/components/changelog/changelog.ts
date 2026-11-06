@@ -12,6 +12,25 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.3.6', date: '2026-11-06', title: 'Navigation and architecture improvements', status: 'release',
+    changes: [
+      'Hash-based routing: Dedicated URLs for Explore, My prompts, Teams, Reviews, Admin, and Changelog.',
+      'Authentication routing: Separate #/sign-in and #/sign-up pages.',
+      'Browser history: Support for direct links, refreshes, and Back/Forward navigation.',
+      'Code refactoring: Split the large App.tsx into smaller, feature-organized React components.',
+      'Automated testing: Added Playwright browser tests for desktop and mobile.',
+      'Repository cleanup: Removed unused legacy files.'
+    ],
+  },
+  {
+    version: '0.3.5', date: '2026-11-05', title: 'Email sharing and changelog', status: 'release',
+    changes: [
+      'Added an email composer for sharing prompts, requesting feedback, and inviting collaboration.',
+      'Added a changelog page to browse release history.',
+      'Refined interface styling and other visual details.',
+    ],
+  },
+  {
     version: '0.3.4', date: '2026-11-01', title: 'More focused prompt filters', status: 'release',
     changes: [
       'Added quick category filters to Favorites.',
