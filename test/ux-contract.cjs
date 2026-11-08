@@ -61,7 +61,8 @@ console.log('PASS: UX, admin category editor, bulk alignment and hard-delete con
 
 // Explore quick filters use the same state as the advanced Filters pop-up.
 assert.match(app,/filter==='My teams' \? 'team'/);
-assert.match(app,/filter==='All prompts' \|\| filter==='Personal'/);
+assert.match(app,/view==='explore' && filter!=='My teams'/);
+assert.match(app,/view==='mine' && !mineTrash/);
 assert.match(app,/className="prompt-quick-filters"/);
 // The quick chips precede the Filters button, and no selected-filter bubbles appear above results.
 const quickChipsPosition=app.indexOf('className="prompt-quick-filters"');
@@ -116,7 +117,7 @@ console.log('PASS: team transfer approvals, alphabetical lists and secure feedba
 
 // Favorites is a category-filtered library, and My teams supports a second,
 // team-scoped category row without showing categories from unrelated teams.
-assert.match(app,/filter==='All prompts' \|\| filter==='Personal' \|\| filter==='Favorites'/);
+assert.match(app,/filter==='Other teams' \? accessible\.filter\(/);
 assert.match(app,/filter==='Favorites' \? accessible\.filter\(p=>data\.favorites\.some\(f=>f\.user_id===user\?\.id&&f\.prompt_id===p\.id\)\)/);
 assert.match(app,/const selectedTeamCategories = quickFilterType==='team' && facets\.team/);
 assert.match(app,/quickFilterBase\.filter\(p=>p\.owner_team_id===facets\.team\)/);

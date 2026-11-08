@@ -1576,6 +1576,7 @@ html[data-theme='dark'] .app-main .row-clipboard-actions button:hover,html[data-
 .changelog-version{font:800 14px Manrope,'DM Sans',sans-serif;color:#404bb1}
 .changelog-status{font-size:10px;font-weight:800;letter-spacing:.025em;padding:5px 9px;border-radius:999px;background:#eff1ff;color:#505bc1}
 .changelog-status.is-development{background:#f0f1f4;color:#798396}
+.changelog-status.is-current {background: #e7f8ec;color: #176b42}
 .changelog-release-meta time{color:#939cab;font-size:11px;margin-left:auto}
 .changelog-release h2{font:800 18px Manrope,'DM Sans',sans-serif;letter-spacing:-.035em;color:#242d3b;margin:0 0 12px}
 .changelog-release ul{display:grid;gap:8px;margin:0;padding-left:20px;color:#6d7789;font-size:13px;line-height:1.6}
@@ -1592,6 +1593,7 @@ html[data-theme='dark'] .changelog-release h2{color:#ecf1fb}
 html[data-theme='dark'] .changelog-version{color:#b4b9ff}
 html[data-theme='dark'] .changelog-status{background:#32365e;color:#bfc5ff}
 html[data-theme='dark'] .changelog-status.is-development{background:#303a47;color:#bdc7d7}
+html[data-theme='dark'] .changelog-status.is-current {background: #174a35;color: #a7f3ce}
 html[data-theme='dark'] .changelog-release ul,html[data-theme='dark'] .changelog-topline>span,html[data-theme='dark'] .changelog-release-meta time,html[data-theme='dark'] .changelog-maintenance{color:#a8b5ca}
 html[data-theme='dark'] .share-email-status{background:#203e36;color:#a1e6c8}
 @media(max-width:600px){.changelog-release{padding:19px}.changelog-release-meta time{margin-left:0}.share-email-dialog .modal-footer>div{width:100%}.share-email-dialog .modal-footer .btn{flex:1 1 auto}.changelog-page{margin-bottom:30px}}
@@ -1679,4 +1681,10 @@ html[data-theme='dark'] .topbar .main-nav .nav-link.active {
 @media (max-width: 760px) {
   .topbar .main-nav { gap: 5px; }
   .topbar .main-nav .nav-link { min-height: 35px; padding: 7px 11px; border-radius: 9px; }
+}
+
+/* Center the arrow with the clipboard actions in detailed view */
+.app-main .prompt-row-shell > .prompt-row:not(.prompt-row-listified) .row-arrow {
+  align-self: center;
+  margin-top: 0;
 }

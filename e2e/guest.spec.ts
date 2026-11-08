@@ -7,11 +7,23 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('.prompt-row')).toHaveCount(5);
 });
 
+
 test('guest can browse the sample prompt library', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: /Collaborative prompt portfolio/i }))
-    .toBeVisible();
-  await expect(page.locator('.prompt-row').first()).toBeVisible();
+  await expect(page).toHaveURL(/#\/explore$/);
+
+  await expect(
+    page.locator('.prompt-row').filter({
+      hasText: 'Turn meeting notes into action items',
+    })
+  ).toBeVisible();
+
+  await expect(
+    page.locator('.prompt-row').filter({
+      hasText: 'Explore a market opportunity',
+    })
+  ).toBeVisible();
 });
+
 
 test('guest can search prompts by keyword', async ({ page }) => {
   await page.getByRole('button', { name: 'Keywords search' }).click();

@@ -41,7 +41,7 @@ test('entering demo and returning from guest mode maintain meaningful URLs', asy
   await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible();
   await page.getByRole('button', { name: /Try the full demo workspace/i }).click();
   await expect(page).toHaveURL(/#\/explore$/);
-  await expect(page.getByRole('heading', { name: /Collaborative prompt portfolio/i })).toBeVisible();
+  await expect(page.locator('main .page-heading h1')).toContainText('Explore.');
 });
 
 test('plain site URL defaults to sign-in and keeps URL query strings', async ({ page }) => {

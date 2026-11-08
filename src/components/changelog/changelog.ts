@@ -1,7 +1,3 @@
-/** Manually curated release notes. Add one entry for every published version from v0.3.0 onward.
- * Historical titles and dates are based on Promptfolio's GitHub commit history.
- * New features that have not been released should not be assigned a version here.
- */
 export type ChangelogEntry = {
   version: string;
   date?: string;
@@ -12,11 +8,18 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.3.7', date: '2026-11-08', title: 'UX improvements', status: 'release',
+    changes: [
+      'Customizable Explore page.',
+      'Added ability to delete categories.',
+      'Smaller title and subtitle.',
+      'Updated prompt tags.'
+    ],
+  },
+  {
     version: '0.3.6', date: '2026-11-06', title: 'Navigation and architecture improvements', status: 'release',
     changes: [
-      'Hash-based routing: Dedicated URLs for Explore, My prompts, Teams, Reviews, Admin, and Changelog.',
-      'Authentication routing: Separate #/sign-in and #/sign-up pages.',
-      'Browser history: Support for direct links, refreshes, and Back/Forward navigation.',
+      'Hash-based routing: Dedicated URLs for Sign-in/-up Explore, My prompts, Teams, Reviews, Admin, and Changelog.',
       'Code refactoring: Split the large App.tsx into smaller, feature-organized React components.',
       'Automated testing: Added Playwright browser tests for desktop and mobile.',
       'Repository cleanup: Removed unused legacy files.'

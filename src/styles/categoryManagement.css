@@ -1,0 +1,64 @@
+/* Admin category maintenance: buttons and notes scoped to the existing card. */
+.admin-category-management .category-management-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+.admin-category-management .admin-category-simple-form .category-management-actions .btn { margin: 0; }
+.admin-category-management .category-delete-button,
+.category-delete-confirm .category-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-color: #e5bcc4;
+  color: #a63c50;
+}
+.admin-category-management .category-delete-button:hover:not(:disabled),
+.category-delete-confirm .category-delete-button:hover:not(:disabled) {
+  background: #fff0f2;
+  border-color: #c87889;
+  color: #922e43;
+}
+.admin-category-management .category-usage-note {
+  font-size: 11px;
+  line-height: 1.55;
+  color: #788497;
+  margin: -3px 0 0;
+  max-width: 480px;
+}
+.admin-category-management .category-cleanup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 25px;
+  padding-top: 21px;
+  border-top: 1px solid var(--line);
+}
+.admin-category-management .category-cleanup-row > div { display: flex; flex-direction: column; gap: 4px; }
+.admin-category-management .category-cleanup-row strong { font-size: 12px; }
+.admin-category-management .category-cleanup-row span { font-size: 11px; color: #788497; line-height: 1.45; }
+.admin-category-management .category-cleanup-row .btn { margin: 0; display: inline-flex; align-items: center; gap: 7px; }
+.category-delete-confirm .modal-header p { line-height: 1.6; }
+html[data-theme='dark'] .admin-category-management .category-cleanup-row { border-color: var(--pf-dark-border); }
+html[data-theme='dark'] .admin-category-management .category-usage-note,
+html[data-theme='dark'] .admin-category-management .category-cleanup-row span { color: #aebcd0; }
+html[data-theme='dark'] .admin-category-management .category-delete-button,
+html[data-theme='dark'] .category-delete-confirm .category-delete-button {
+  background: transparent;
+  color: #ffb5c0;
+  border-color: #815260;
+}
+html[data-theme='dark'] .admin-category-management .category-delete-button:hover:not(:disabled),
+html[data-theme='dark'] .category-delete-confirm .category-delete-button:hover:not(:disabled) {
+  background: #52333f;
+  color: #ffe0e5;
+  border-color: #a9687a;
+}
+@media (max-width: 520px) {
+  .admin-category-management .category-cleanup-row { align-items: stretch; }
+  .admin-category-management .category-cleanup-row > .btn { align-self: flex-start; }
+}

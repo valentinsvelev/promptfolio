@@ -1,0 +1,15 @@
+/* Compact prompt-detail metadata: owner / category / approved checkmark. */
+.detail-scroll .status-row .detail-approved-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 21px;
+  height: 21px;
+  color: #1f8758;
+  flex: 0 0 auto;
+}
+
+html[data-theme='dark'] .detail-scroll .status-row .detail-approved-check {
+  color: #81dbab;
+}

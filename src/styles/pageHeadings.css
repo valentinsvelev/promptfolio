@@ -1,0 +1,46 @@
+/* Single-line workspace headings — Option B.
+   Applied to Explore, My prompts, Teams, Reviews, Admin and Changelog only.
+   Auth forms, dialog headings, row titles and detail-panel headings are untouched. */
+.app-main .page-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 18px;
+  row-gap: 5px;
+  min-height: 0;
+  padding: 20px 0 12px;
+}
+.app-main .page-heading h1 {
+  flex: 0 0 auto;
+  margin: 0;
+  color: #252d39;
+  font-family: Manrope, 'DM Sans', sans-serif;
+  font-size: clamp(20px, 1.9vw, 25px);
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -.045em;
+}
+.app-main .page-heading-dot { color: var(--accent); }
+.app-main .page-heading p {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: #8792a2;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+html[data-theme='dark'] .app-main .page-heading h1 { color: var(--pf-dark-text, #eef1f8); }
+html[data-theme='dark'] .app-main .page-heading p { color: var(--pf-dark-muted, #a4b0c4); }
+@media (max-width: 760px) {
+  .app-main .page-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 15px 0 10px;
+  }
+  .app-main .page-heading h1 { font-size: 21px; }
+  .app-main .page-heading p { font-size: 12px; }
+}

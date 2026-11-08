@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, Bell, Check, CheckCircle2, ChevronDown, Clock3, Download, FileClock,
   List, LockKeyhole, LogOut, MessageSquarePlus, Moon, Plus, RotateCcw,
-  Search, Settings2, SlidersHorizontal, Sun, Trash2, X,
+  Search, Settings2, SlidersHorizontal, Sun, Trash2, X, Pencil,
 } from 'lucide-react';
 import {accountAdmin, changePassword, client, demoIdentity, execute, favorite, guestSampleData, identity, isDemo, loadData, loadLikeCounts, signOut, updatePassword, updateDisplayName, loadListifyPreference, saveListifyPreference} from './services/api';
 import {blankBody, emptyData, type AppData, type Filter, type Identity, type Prompt, type PromptBody, type PromptVersion, type Proposal, type ReviewItem, type View} from './types';
@@ -21,6 +21,7 @@ import { PromptRow } from './components/prompts/PromptRow';
 import { PromptDetail } from './components/prompts/PromptDetail';
 import { CompareVersions } from './components/prompts/CompareVersions';
 import { AdminCategories } from './components/admin/AdminCategories';
+import { deleteCategory, deleteUnusedCategories } from './services/categoryMaintenance';
 import { AdminAdvanced } from './components/admin/AdminAdvanced';
 import { AdminSection } from './components/admin/AdminSection';
 import { TeamCard } from './components/teams/TeamCard';
@@ -28,6 +29,10 @@ import { saveFile } from './utils/prompt';
 import { combineClipboardText } from './utils/sharing';
 import { useHashRoute } from './hooks/useHashRoute';
 import { isAuthRoute, viewFromHash } from './utils/routes';
+import { defaultExplorePreferences, type ExplorePreferences } from './utils/defaultExploreTab';
+import { loadExplorePreferences, saveExplorePreferences } from './services/explorePreferences';
+import { ExploreTabsDialog } from './components/prompts/ExploreTabsDialog';
+import { PageHeading } from './components/ui/PageHeading';
 
 // Injected by Vite for both local development and GitHub Pages builds.
 declare const __PROMPTFOLIO_BUILD_DATE__: string;
@@ -40,6 +45,11 @@ export default function App(){
   const [ready,setReady]=useState(false); const [busy,setBusy]=useState(false);
   const [toast,setToast]=useState(''); const [view,setView,replaceView]=useHashRoute();
   const [filter,setFilter]=useState<Filter>('All prompts');const [query,setQuery]=useState('');
+  const [explorePrefs,setExplorePrefs]=useState<ExplorePreferences>(defaultExplorePreferences);
+  const [explorePrefsReady,setExplorePrefsReady]=useState(false);
+  const [exploreTabEditorOpen,setExploreTabEditorOpen]=useState(false);
+  const explicitExploreSelection=useRef(false);
+  const defaultExploreTab=explorePrefs.defaultTab;
   // Explore tabs show their prompt lists directly.
   const [listified,setListified]=useState(false);
   const [listifyLoadedFor,setListifyLoadedFor]=useState<string|null>(null);
@@ -100,6 +110,27 @@ export default function App(){
       document.removeEventListener('keydown',onEscape);
     };
   },[accountOpen]);
+  // Load the signed-in account's Explore preferences from Supabase.
+  // Guests get the standard ordering; demo users are saved locally.
+  useEffect(()=>{
+    let active=true;
+    explicitExploreSelection.current=false;
+    setExplorePrefs(defaultExplorePreferences());
+    setExplorePrefsReady(!user);
+    setFilter('All prompts');
+    if(!user)return()=>{active=false};
+    const uid=user.id;
+    void loadExplorePreferences(uid).then(preferences=>{
+      if(!active)return;
+      setExplorePrefs(preferences);
+      // Do not overwrite a manual choice made while the preference was loading.
+      if(!explicitExploreSelection.current)setFilter(preferences.defaultTab);
+    }).catch(error=>{
+      if(!active)return;
+      notify(error instanceof Error?`Could not load Explore preferences: ${error.message}`:'Could not load Explore preferences.');
+    }).finally(()=>{if(active)setExplorePrefsReady(true)});
+    return()=>{active=false};
+  },[user?.id]);
   const [reviewReason,setReviewReason]=useState<Record<string,string>>({});
   const notify=useCallback((m:string)=>{setToast(m);setTimeout(()=>setToast(''),4200)},[]);
   const reload=useCallback(async()=>{const [records,counts]=await Promise.all([loadData(),loadLikeCounts()]);setData(records);setLikeCounts(counts);},[]);
@@ -170,6 +201,7 @@ export default function App(){
     const id=sharedPromptPending.current;
     sharedPromptPending.current=null;
     if(accessible.some(p=>p.id===id)){
+      explicitExploreSelection.current=true;
       setView('explore');setFilter('All prompts');setSelectedId(id);setShowMobileDetail(true);
     }else notify('This shared prompt is not available to your account. Request access from the sender.');
   },[user?.id,data.profiles,accessible,notify]);
@@ -214,9 +246,12 @@ export default function App(){
   // Quick filters use the exact same facet state as the advanced Filters dialog.
   // Derive choices from this tab's accessible prompts, before applying filters.
   const quickFilterType = view==='explore' && filter==='My teams' ? 'team'
-    : view==='explore' && (filter==='All prompts' || filter==='Personal' || filter==='Favorites') ? 'category' : null;
-  const quickFilterBase = filter==='Personal' ? accessible.filter(p=>p.owner_user_id===user?.id)
+    : (view==='mine' && !mineTrash) || (view==='explore' && filter!=='My teams') ? 'category' : null;
+  const quickFilterBase = view==='mine'
+    ? accessible.filter(p=>p.owner_user_id===user?.id||p.created_by===user?.id)
+    : filter==='Personal' ? accessible.filter(p=>p.owner_user_id===user?.id)
     : filter==='My teams' ? accessible.filter(p=>isMember(p.owner_team_id))
+    : filter==='Other teams' ? accessible.filter(p=>!!p.owner_team_id&&!isMember(p.owner_team_id))
     : filter==='Favorites' ? accessible.filter(p=>data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===p.id))
     : accessible;
   // Show only choices backed by accessible prompts in this tab. Compute these
@@ -275,7 +310,7 @@ export default function App(){
       }
     });
   }
-  function askDelete(p:Prompt){setConfirm({title:'Move prompt to trash?',description:'This prompt will be hidden from your library. You can restore it during the retention period.',confirm:'Move to trash',run:async()=>{await doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:false}),'Prompt moved to trash.');setConfirm(null)}})}
+  function askDelete(p:Prompt){setConfirm({title:'Move prompt to trash?',description:'This prompt will be hidden from your library. You can restore it during the retention period.',confirm:'Delete',run:async()=>{await doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:false}),'Prompt moved to trash.');setConfirm(null)}})}
   function askReview(item:ReviewItem,approve:boolean){const reason=reviewReason[item.record.id]||'';
     if(!approve&&reason.trim().length<3){notify('Please provide a rejection reason (at least 3 characters).');return;}
     setConfirm({title:approve?'Approve these changes?':'Reject this submission?',description:approve?'The decision will be recorded. Version approvals replace the official prompt; accepted improvement proposals enter version review.':'The author will be notified and the decision saved.',confirm:approve?'Approve':'Reject',run:async()=>{await doAction(()=>item.kind==='version'?execute('review_prompt_version',{vid:item.record.id,approve,reason}):execute('review_improvement_proposal',{proposal_id:item.record.id,accept:approve,reason}),approve?'Review completed.':'Submission rejected.');setConfirm(null)}});
@@ -356,6 +391,7 @@ export default function App(){
   useEffect(()=>{
     const onHistoryNavigation=()=>{
       resetDiscovery();
+      if(viewFromHash(window.location.hash)==='explore')setFilter(user?defaultExploreTab:'All prompts');
       if(viewFromHash(window.location.hash)==='mine')setMineTrash(false);
     };
     window.addEventListener('popstate',onHistoryNavigation);
@@ -364,28 +400,50 @@ export default function App(){
       window.removeEventListener('popstate',onHistoryNavigation);
       window.removeEventListener('hashchange',onHistoryNavigation);
     };
-  },[]);
+  },[user?.id,defaultExploreTab]);
   // A read-only guest cannot navigate to signed-in sections; never reveal
   // privileged sections to an account without the admin role.
   useEffect(()=>{
     if(guest && isAuthRoute(view)){setGuest(false);setData(emptyData());setSelectedId(null)}
-    else if(guest && view!=='explore')replaceView('explore');
+    else if(guest && view!=='explore' && view!=='changelog')replaceView('explore');
     else if(user && view==='admin' && !isAdmin && data.profiles.some(p=>p.id===user.id))replaceView('explore');
   },[guest,user,view,isAdmin,data.profiles,replaceView]);
   // Auth URLs are public entry points, not authenticated workspace screens.
   useEffect(()=>{
     if(user && isAuthRoute(view))replaceView('explore');
   },[user,view,replaceView]);
-  function navigate(v:View){setView(v);resetDiscovery();if(v==='mine')setMineTrash(false);}
+  function navigate(v:View){
+    setView(v);resetDiscovery();
+    if(v==='explore')setFilter(user?defaultExploreTab:'All prompts');
+    if(v==='mine')setMineTrash(false);
+  }
+  async function saveExploreChoice(preferences:ExplorePreferences):Promise<void>{
+    if(!user)throw new Error('Sign in to save Explore preferences.');
+    await saveExplorePreferences(user.id,preferences);
+    setExplorePrefs(preferences);
+    if(view==='explore'&&defaultExploreTab!==preferences.defaultTab){
+      setFilter(preferences.defaultTab);resetDiscovery();
+    }
+  }
+  async function changeDefaultExploreTab(next:Filter):Promise<void>{
+    await saveExploreChoice({...explorePrefs,defaultTab:next});
+  }
   if(!ready)return <div className="boot"><Logo/><div className="loading-line"/></div>;
   if(user&&(recoveryMode||blocked?.must_change_password))return <div className="session-gate"><Logo/><form onSubmit={async e=>{e.preventDefault();try{if(blocked?.must_change_password)await accountAdmin('complete_temp_password',{password:newPassword});else await updatePassword(newPassword);setNewPassword('');setRecoveryMode(false);await reload();notify('Password updated.');}catch(err){notify(err instanceof Error?err.message:'Password update failed');}}}><h2>{blocked?.must_change_password?'Change your temporary password':'Reset your password'}</h2><p>{blocked?.must_change_password?'A personal password is required before you can access company prompts.':'Choose your new account password.'}</p><label className="field">New password<input type="password" required minLength={12} value={newPassword} onChange={e=>setNewPassword(e.target.value)} autoComplete="new-password"/></label><Button type="submit">Update password <ArrowRight size={16}/></Button></form>{toast&&<div className="toast">{toast}</div>}</div>;
   return <div className="app"><header className="topbar"><div className="container topbar-in"><a href={`${import.meta.env.BASE_URL}#/${user||guest?'explore':'sign-in'}`} className="brand-link" onClick={e=>{e.preventDefault();if(user||guest)navigate('explore');else setView('sign-in')}}><Logo/></a>
     {(user||guest)&&<nav className="main-nav" aria-label="Main navigation">{(guest?[['explore','Explore']] as [View,string][]:[['explore','Explore'],['mine','My prompts'],['teams','Teams'],['reviews','Reviews']] as [View,string][]).map(([v,t])=><button key={v} className={`nav-link ${view===v?'active':''}`} onClick={()=>navigate(v)}>{t}{v==='reviews'&&reviewQueue.length>0&&<span className="nav-bubble">{reviewQueue.length}</span>}</button>)}{isAdmin&&<button className={`nav-link ${view==='admin'?'active':''}`} onClick={()=>navigate('admin')}>Admin</button>}</nav>}
     <div className="topbar-right">{user&&<button type="button" className="feedback-trigger" aria-label="Report an issue or suggest an improvement" title="Report an issue / Make a suggestion" onClick={()=>setFeedbackOpen(true)}><MessageSquarePlus size={17}/></button>}<button type="button" className="theme-toggle" aria-label={darkMode?'Switch to light mode':'Switch to dark mode'} title={darkMode?'Switch to light mode':'Switch to dark mode'} aria-pressed={darkMode} onClick={()=>setDarkMode(v=>!v)}>{darkMode?<Sun size={17}/>:<Moon size={17}/>}</button>{user?<><button className="notice-trigger" aria-label="Open notifications" onClick={()=>setNoticeOpen(true)}><Bell size={17}/>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length>0&&<b>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length}</b>}</button><Button onClick={()=>setEditor({mode:'create'})} className="top-new"><Plus size={17}/> New prompt</Button><div className="account-wrap" ref={accountMenuRef}><button type="button" ref={accountTriggerRef} className="profile-button" title="Open account menu" aria-expanded={accountOpen} aria-haspopup="true" onClick={()=>setAccountOpen(s=>!s)}><Avatar name={person(user.id)}/><ChevronDown size={14}/></button>{accountOpen&&<div className="account-menu"><div className="account-menu-head"><strong>{person(user.id)}</strong><span>{user.email}</span></div><div className="menu-separator"/><button onClick={()=>{setSettingsOpen(true);setAccountOpen(false)}}><Settings2 size={16}/> Settings</button><button onClick={()=>{navigate('changelog');setAccountOpen(false)}} aria-current={view==='changelog'?'page':undefined}><FileClock size={16}/> Changelog</button><button onClick={async()=>{if(!isDemo)await signOut();setUser(null);setData(emptyData());setAccountOpen(false);setSelectedId(null);setView('sign-in')}}><LogOut size={16}/> Sign out</button></div>}</div></>:guest?<Button variant="outline" onClick={()=>{setGuest(false);setData(emptyData());setSelectedId(null);setView('sign-in')}}>Sign in <ArrowRight size={15}/></Button>:null}</div></div></header>
 
-  {!user&&(!guest||isAuthRoute(view))?<main className="container"><Auth authRoute={view==='sign-up'?'signup':'login'} onModeChange={mode=>setView(mode==='signup'?'sign-up':'sign-in')} onLogin={async u=>{setGuest(false);setUser(u);await reload()}} onDemo={async()=>{setGuest(false);setUser(demoIdentity);await reload()}} onGuest={()=>{setData(guestSampleData());setGuest(true);setView('explore');setSelectedId(null)}} busy={busy} message={notify} onNotice={notify}/></main>:<main className="container app-main">
-  {hasExplore?<><section className="hero"><div><h1>{view==='mine'?<>Manage your prompts<span className="accent-dot">.</span></>:<>Collaborative prompt portfolio<span className="accent-dot">.</span></>}</h1><p>{view==='mine'?'Browse the prompts you own or originally created, including those shared with your teams.':guest?'Preview sample prompts without an account. Sign in for your team library.':'Discover what others have built, adapt it to your work, and share what works.'}</p></div></section>
-  <div className="filters-bar"><div className="filter-list">{view==='explore'?(['All prompts','Personal','My teams','Other teams','Favorites'] as Filter[]).filter(x=>!guest||x==='All prompts').map(x=><button className={`filter-chip ${filter===x?'selected':''}`} key={x} onClick={()=>{setFilter(x);resetDiscovery()}}>{x}</button>):<><button className={`filter-chip ${!mineTrash?'selected':''}`} onClick={()=>setMineTrash(false)}>My library</button><button className={`filter-chip ${mineTrash?'selected':''}`} onClick={()=>setMineTrash(true)}>Trash</button></>}</div>{view==='mine'&&<button className="import-control" onClick={()=>importRef.current?.click()}><Plus size={13}/> Import prompt</button>}</div>
+  {!user&&(!guest||isAuthRoute(view))&&view!=='changelog'?<main className="container"><Auth authRoute={view==='sign-up'?'signup':'login'} onModeChange={mode=>setView(mode==='signup'?'sign-up':'sign-in')} onLogin={async u=>{setGuest(false);setUser(u);await reload()}} onDemo={async()=>{setGuest(false);setUser(demoIdentity);await reload()}} onGuest={()=>{setData(guestSampleData());setGuest(true);setView('explore');setSelectedId(null)}} busy={busy} message={notify} onNotice={notify}/></main>:<main className="container app-main">
+  {hasExplore?<><PageHeading
+    title={view==='mine'?'My prompts':'Explore'}
+    description={view==='mine'
+      ?'Manage the prompts you own or created.'
+      :guest
+        ?'Browse sample prompts before signing in.'
+        :'Discover, adapt, and share useful prompts.'}
+  />
+  <div className="filters-bar"><div className="filter-list">{view==='explore'?(guest?(['All prompts'] as Filter[]):explorePrefs.tabOrder).map(x=><button className={`filter-chip ${filter===x?'selected':''}`} key={x} onClick={()=>{explicitExploreSelection.current=true;setFilter(x);resetDiscovery()}}>{x}</button>):<><button className={`filter-chip ${!mineTrash?'selected':''}`} onClick={()=>setMineTrash(false)}>My library</button><button className={`filter-chip ${mineTrash?'selected':''}`} onClick={()=>setMineTrash(true)}>Trash</button></>}</div>{view==='explore'&&user&&<button type="button" className="explore-edit-tabs" aria-label="Edit Explore tabs" title="Customize Explore tabs" onClick={()=>setExploreTabEditorOpen(true)} disabled={!explorePrefsReady}><Pencil size={14}/> Edit</button>}{view==='mine'&&<button className="import-control" onClick={()=>importRef.current?.click()}><Plus size={13}/> Import prompt</button>}</div>
 
   {view==='mine'&&mineTrash?<div className="trash-container"><div className="list-top"><h2>Recently deleted</h2></div>{data.prompts.filter(p=>p.deleted_at&&(p.owner_user_id===user?.id||p.created_by===user?.id)).map(p=><div className="trash-item" key={p.id}><Trash2 size={18}/><div><strong>{official(p)?.title||'Untitled prompt'}</strong><p>Deleted {when(p.deleted_at||undefined)}</p></div><div className="trash-item-actions"><Button variant="outline" disabled={busy} onClick={()=>doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:true}),'Prompt restored.')}><RotateCcw size={15}/> Restore</Button>{(p.owner_user_id===user?.id||(p.owner_team_id&&(isManager(p.owner_team_id)||isAdmin)))&&<Button variant="outline" className="trash-delete-forever" disabled={busy} onClick={()=>askPermanentlyDelete(p)}><Trash2 size={15}/> Delete permanently</Button>}</div></div>)}{!data.prompts.some(p=>p.deleted_at&&(p.owner_user_id===user?.id||p.created_by===user?.id))&&<Empty title="Your trash is empty" description="Deleted prompts will appear here while they can still be restored." icon={Trash2}/>}</div>:<div className="workspace"><div className="prompt-results"><div className="list-top list-top-tools">
     <span className="results-count" role="status">{searchable.length} {searchable.length===1?'result':'results'}</span>
@@ -416,12 +474,28 @@ export default function App(){
     <PromptRow prompt={p} version={v} onDoubleClick={()=>openEditorForPrompt(p)} onCopy={()=>{void navigator.clipboard.writeText(v.content).then(()=>notify('Prompt copied to clipboard.')).catch(()=>notify('Unable to copy prompt to clipboard.'))}} onCombine={()=>{void navigator.clipboard.readText().then(old=>navigator.clipboard.writeText(combineClipboardText(old,v.content))).then(()=>notify('Combined with clipboard.')).catch(()=>notify('Clipboard access was denied. Allow clipboard reading and try again.'))}} listified={listified} owner={owner(p)} likes={guest?0:likeCounts[p.id]||0} active={selected?.id===p.id} onSelect={()=>{setSelectedId(p.id);setShowMobileDetail(true)}}/>
   </div>})}
   {searchable.length===0&&<Empty title="No prompts found" description="Try a different search, or be the first to add a prompt." action={guest?undefined:<Button onClick={()=>setEditor({mode:'create'})}><Plus size={16}/> Create prompt</Button>}/>}
-  </div></div><aside className={`detail-panel ${showMobileDetail?'mobile-visible':''}`}>{selected&&selectedVersion?<PromptDetail key={selected.id+selectedVersion.id} prompt={selected} version={selectedVersion} latest={selectedLatest} history={history(selected.id)} owner={owner(selected)} creator={person(selected.created_by)} lastEditor={person(selectedLatest?.author_id||selectedVersion.author_id)} canEdit={!guest&&canEdit(selected)} canSuggest={!guest&&canSuggest(selected)} saved={!guest&&data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===selected.id)} onClose={()=>setShowMobileDetail(false)} recommended={data.recommendations.some(r=>r.prompt_id===selected.id)} isManager={!guest&&isManager(selected.owner_team_id)} readOnly={guest} onCompare={versionId=>setCompare({prompt:selected,versionId})} onDeprecate={()=>{const reason=window.prompt("Why should this prompt be deprecated?");if(reason&&reason.trim().length>=3)void doAction(()=>execute('deprecate_team_prompt',{pid:selected.id,reason}),'Team prompt deprecated.')}} onRecommend={()=>doAction(()=>execute('set_team_recommendation',{pid:selected.id,recommend:!data.recommendations.some(r=>r.prompt_id===selected.id)}),'Recommendation updated.')} onFavorite={()=>{if(guest){notify('Sign in to like or save a prompt.');return;}void toggleFavorite(selected)}} onDuplicate={()=>{if(guest){notify('Sign in to duplicate prompts.');return;}void copySelected(selected)}} onShareEmail={()=>setEmailSharePrompt(selected)} onEdit={()=>setEditor({mode:selected.owner_team_id?'suggest':'edit',prompt:selected})} onSuggest={()=>setEditor({mode:'suggest',prompt:selected})} onLifecycle={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:selected.lifecycle==='published'?'draft':'published'}),'Lifecycle updated.')} onDelete={()=>askDelete(selected)} onRequest={id=>doAction(()=>execute('request_version_review',{vid:id}),'Sent for review.')} onArchive={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:'archived'}),'Prompt archived.')} onRestore={()=>doAction(()=>execute('soft_delete_prompt',{pid:selected.id,recover:true}),'Prompt restored.')} onShare={()=>{setShareId(selected.id);setShareTeam(ownTeamList[0]?.id||'')}}/>:<Empty title="Select a prompt" description="Choose a prompt from the list to preview it here."/>}</aside></div>}</>:<><section className="subhero"><h1>{view==='teams'?'Manage your teams':view==='reviews'?'Review queue':view==='changelog'?'Changelog':'Manage promptfolio'}<span className="accent-dot">.</span></h1><p>{view==='teams'?'Get an overview of the teams you are in.':view==='reviews'?'GitHub pull requests for your prompts!':view==='changelog'?'What has changed in Promptfolio, release by release.':'Control how promptfolio works.'}</p></section>
-  {view==='changelog'&&<ChangelogPage onBack={()=>navigate('explore')}/>}
+  </div></div><aside className={`detail-panel ${showMobileDetail?'mobile-visible':''}`}>{selected&&selectedVersion?<PromptDetail key={selected.id+selectedVersion.id} prompt={selected} version={selectedVersion} latest={selectedLatest} history={history(selected.id)} owner={owner(selected)} creator={person(selected.created_by)} lastEditor={person(selectedLatest?.author_id||selectedVersion.author_id)} canEdit={!guest&&canEdit(selected)} canSuggest={!guest&&canSuggest(selected)} saved={!guest&&data.favorites.some(f=>f.user_id===user?.id&&f.prompt_id===selected.id)} onClose={()=>setShowMobileDetail(false)} recommended={data.recommendations.some(r=>r.prompt_id===selected.id)} isManager={!guest&&isManager(selected.owner_team_id)} readOnly={guest} onCompare={versionId=>setCompare({prompt:selected,versionId})} onDeprecate={()=>{const reason=window.prompt("Why should this prompt be deprecated?");if(reason&&reason.trim().length>=3)void doAction(()=>execute('deprecate_team_prompt',{pid:selected.id,reason}),'Team prompt deprecated.')}} onRecommend={()=>doAction(()=>execute('set_team_recommendation',{pid:selected.id,recommend:!data.recommendations.some(r=>r.prompt_id===selected.id)}),'Recommendation updated.')} onFavorite={()=>{if(guest){notify('Sign in to like or save a prompt.');return;}void toggleFavorite(selected)}} onDuplicate={()=>{if(guest){notify('Sign in to duplicate prompts.');return;}void copySelected(selected)}} onShareEmail={()=>setEmailSharePrompt(selected)} onEdit={()=>setEditor({mode:selected.owner_team_id?'suggest':'edit',prompt:selected})} onSuggest={()=>setEditor({mode:'suggest',prompt:selected})} onLifecycle={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:selected.lifecycle==='published'?'draft':'published'}),'Lifecycle updated.')} onDelete={()=>askDelete(selected)} onRequest={id=>doAction(()=>execute('request_version_review',{vid:id}),'Sent for review.')} onArchive={()=>doAction(()=>execute('set_prompt_lifecycle',{pid:selected.id,new_status:'archived'}),'Prompt archived.')} onRestore={()=>doAction(()=>execute('soft_delete_prompt',{pid:selected.id,recover:true}),'Prompt restored.')} onShare={()=>{setShareId(selected.id);setShareTeam(ownTeamList[0]?.id||'')}}/>:<Empty title="Select a prompt" description="Choose a prompt from the list to preview it here."/>}</aside></div>}</>:<><PageHeading
+    title={view==='teams'?'Teams':view==='reviews'?'Reviews':view==='changelog'?'Changelog':'Admin'}
+    description={view==='teams'
+      ?'Manage your shared libraries and members.'
+      :view==='reviews'
+        ?'Review pending prompt changes and suggestions.'
+        :view==='changelog'
+          ?'Release notes and product updates.'
+          :'Manage workspace settings and access.'}
+  />
+  {view==='changelog'&&<ChangelogPage onBack={()=>user||guest?navigate('explore'):setView('sign-in')}/>}
   {view==='teams'&&<div className="teams-layout">{ownTeamList.length===0&&!isAdmin&&<Empty title="You're not part of a team yet" description="Your personal prompts are ready. Ask a manager to add you to a shared library." icon={LockKeyhole}/>} {ownTeamList.map(t=><TeamCard key={t.id} team={t} prompts={data.prompts.filter(p=>p.owner_team_id===t.id&&!p.deleted_at)} versions={data.versions} members={data.members.filter(m=>m.team_id===t.id)} profiles={data.profiles} manager={isManager(t.id)||isAdmin} onRename={()=>setTeamToRename({id:t.id,name:t.name})} onMember={async(email,action)=>{const found=data.profiles.find(p=>p.email.toLowerCase()===email.toLowerCase());if(!found){notify('That person needs to register an account first.');return}await doAction(()=>execute('manage_team_member',{tid:t.id,uid:found.id,operation:action}),action==='add'?'Member added.':'Member removed.')}}/>)}</div>}
   {view==='reviews'&&<div className="reviews-layout"><div className="review-summary"><span><Clock3 size={18}/> Needs your attention</span><strong>{reviewQueue.length} pending</strong></div>{reviewQueue.map(item=>{const current=official(item.prompt);const proposed=item.kind==='version'?item.record as PromptVersion:(item.record as Proposal).proposed_content;const changed=item.kind==='version'?(item.record as PromptVersion).content:(item.record as Proposal).proposed_content.content;return <article className="review-card" key={item.record.id}><div className="review-card-header"><div><h3>{current?.title||proposed.title}</h3><p>{owner(item.prompt)} · submitted by {person(item.kind==='proposal'?(item.record as Proposal).author_id:(item.record as PromptVersion).author_id)}</p></div><Flag tone="amber">{item.kind==='proposal'?(item.record as Proposal).status.replace('_',' '):'Under review'}</Flag></div><div className="compare-grid"><div><div className="compare-label">Current official version</div><pre>{current?.content||'No approved version yet'}</pre></div><div><div className="compare-label">Proposed version</div><pre>{changed}</pre></div></div>{item.kind==='proposal'&&(item.record as Proposal).rationale&&<p className="review-rationale">Reason: {(item.record as Proposal).rationale}</p>}{item.kind==='proposal'&&((item.record as Proposal).target_team_id)&&((item.record as Proposal).target_team_id!==item.prompt.owner_team_id)&&<p className="review-rationale">Requested team transfer: {owner(item.prompt)} → {data.teams.find(t=>t.id===(item.record as Proposal).target_team_id)?.name||'Unknown team'}. Approval requires management rights in both teams.</p>}<div className="review-structured"><strong>Other fields</strong><div className="compare-grid"><div><small>Current · title / category / tags</small><p>{current?.title||'—'} · {current?.category||'—'} · {current?.tags.join(', ')||'—'}</p></div><div><small>Proposed · title / category / tags</small><p>{proposed.title} · {proposed.category} · {proposed.tags.join(', ')}</p></div></div></div><div className="review-footer"><input aria-label="Rejection reason" placeholder="Reason if rejecting…" value={reviewReason[item.record.id]||''} onChange={e=>setReviewReason(s=>({...s,[item.record.id]:e.target.value}))}/>{item.kind==='proposal'&&(item.record as Proposal).status==='open'&&<Button variant="outline" onClick={()=>doAction(()=>execute('set_proposal_under_review',{proposal_id:item.record.id}),'Proposal moved to Under Review.')}>Start review</Button>}<Button variant="outline" onClick={()=>askReview(item,false)}>Reject</Button><Button disabled={item.kind==='proposal'&&!!(item.record as Proposal).target_team_id&&(item.record as Proposal).target_team_id!==item.prompt.owner_team_id&&!isManager((item.record as Proposal).target_team_id||null)&&!isAdmin} onClick={()=>askReview(item,true)}><Check size={15}/>{item.kind==='proposal'?'Accept proposal':'Approve version'}</Button></div></article>})}{reviewQueue.length===0&&<Empty title="All caught up" description="When your team needs an approval, it will appear here." icon={CheckCircle2}/>}</div>}
   {view==='admin'&&isAdmin&&<AdminSection data={data} busy={busy} onCreate={async(team,description,email)=>{const target=data.profiles.find(p=>p.email.toLowerCase()===email.toLowerCase());if(!target){notify('The manager must have an account first.');return}await doAction(()=>execute('create_team',{team_name:team,team_description:description,first_manager:target.id}),'Team created.')}} onManager={(tid,uid,promote)=>doAction(()=>execute('set_team_manager',{tid,uid,promote}),'Team role updated.')}/>}
-  {view==='admin'&&isAdmin&&<AdminCategories categories={categoryNames} busy={busy} onRename={async(oldName,newName)=>{const result=await doAction(()=>execute('rename_category',{old_name:oldName,new_name:newName}),'Category renamed.');return result!==null}}/>}
+  {view==='admin'&&isAdmin&&<AdminCategories
+    categories={categoryNames}
+    usedCategories={[...data.versions.map(v=>v.category),...data.proposals.map(p=>p.proposed_content.category)]}
+    busy={busy}
+    onRename={async(oldName,newName)=>{const result=await doAction(()=>execute('rename_category',{old_name:oldName,new_name:newName}),'Category renamed.');return result!==null}}
+    onDelete={async name=>{const result=await doAction(()=>deleteCategory(name),'Category deleted.');return result!==null}}
+    onDeleteUnused={async()=>{const count=await doAction(deleteUnusedCategories);if(typeof count!=='number')return null;notify(count===0?'No unused categories found.':`${count} unused categor${count===1?'y':'ies'} deleted.`);return count}}
+  />}
   {view==='admin'&&isAdmin&&<AdminAdvanced data={data} busy={busy} executeAction={async(name,args)=>await doAction(()=>execute(name,args),'Updated successfully.')} onIdentity={accountAdmin} onRefresh={reload} notify={notify} onRenameTeam={team=>setTeamToRename(team)}/>}
   </>}
   </main>}
@@ -429,7 +503,7 @@ export default function App(){
      const result=await doAction(()=>execute('rename_team',{tid:teamToRename.id,new_name:newName}),'Team renamed.');
      return result!==null;
    }}/>}
-   <footer className="footer"><div className="container"><span>© Promptfolio</span><span className="footer-build-info"><span>v{packageInfo.version}</span><span className="footer-dot">·</span><span>Last updated: {when(__PROMPTFOLIO_BUILD_DATE__)}</span></span></div></footer>
+   <footer className="footer"><div className="container"><span>© Promptfolio</span><span className="footer-build-info"><a href={`${import.meta.env.BASE_URL}#/changelog`} aria-label={`View changelog for v${packageInfo.version}`} title="View changelog" style={{textDecoration:'underline',textUnderlineOffset:3}} onClick={e=>{if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();navigate('changelog')}}>v{packageInfo.version}</a><span className="footer-dot">·</span><span>Last updated: {when(__PROMPTFOLIO_BUILD_DATE__)}</span></span></div></footer>
   <input aria-label="Import prompt file" type="file" accept=".json,.md,application/json,text/markdown" ref={importRef} hidden onChange={e=>{void importPrompt(e.target.files?.[0]);e.target.value=''}}/>
   {searchExpanded&&<Modal onClose={()=>setSearchExpanded(false)}><div className="search-dialog">
     <div className="modal-header"><div><h2>Keywords search</h2><p>Find prompts by title, content, tags, or team.</p></div><button className="round-icon" type="button" aria-label="Close keywords search" onClick={()=>setSearchExpanded(false)}><X size={19}/></button></div>
@@ -460,10 +534,13 @@ export default function App(){
   {compare&&<CompareVersions data={data} comparison={compare} onClose={()=>setCompare(null)} onRestore={async versionId=>{const original=data.versions.find(v=>v.id===versionId&&v.prompt_id===compare.prompt.id);if(!original){notify('Version not found.');return}const result=compare.prompt.owner_team_id?await doAction(()=>execute('propose_improvement',{pid:compare.prompt.id,payload:{title:original.title,description:original.description,content:original.content,category:original.category,tags:original.tags,usage_instructions:original.usage_instructions,example_inputs:original.example_inputs,expected_outputs:original.expected_outputs,compatible_models:original.compatible_models},explanation:`Suggest restoring v${original.version_number}. ${restoreNote}`.trim()}),'Restoration suggested to team managers.'):await doAction(()=>execute('restore_prompt_version',{pid:compare.prompt.id,source_version_id:versionId,note:restoreNote}),'Old version restored as a new version.');if(result)setCompare(null)}} note={restoreNote} setNote={setRestoreNote}/>}
   {settingsOpen&&user&&<AccountSettings
     name={person(user.id)} email={user.email} statistics={settingsStatistics}
+    defaultExploreTab={defaultExploreTab} tabOrder={explorePrefs.tabOrder} onDefaultExploreTabChange={changeDefaultExploreTab}
+    demoMode={isDemo} preferencesReady={explorePrefsReady}
     onSaveName={async name=>{await updateDisplayName(name);await reload()}}
     onSavePassword={changePassword}
     onClose={()=>setSettingsOpen(false)}
   />}
+  {exploreTabEditorOpen&&user&&<ExploreTabsDialog preferences={explorePrefs} demoMode={isDemo} onSave={saveExploreChoice} onClose={()=>setExploreTabEditorOpen(false)}/>}
   {toast&&<div className="toast" role="status"><CheckCircle2 size={17}/>{toast}<button onClick={()=>setToast('')} aria-label="Dismiss"><X size={14}/></button></div>}
   </div>;
 }

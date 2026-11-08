@@ -2,7 +2,7 @@
 
 A collaborative portfolio for creating, discovering, and improving AI prompts.
 
-**Live app:** https://valentinsvelev.github.io/promptfolio/
+**Live app:** <https://valentinsvelev.github.io/promptfolio/>
 
 ## Features
 
