@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Check, Compass, Heart, Layers, UserRound, Users, X, CheckCircle2 } from 'lucide-react';
 import { Button, Modal } from '../ui';
 import type { Filter } from '../../types';
+import { MyImpactInsights } from '../insights/UsageInsights';
 
 const tabIcons = {
   'All prompts': Compass,
@@ -12,10 +13,10 @@ const tabIcons = {
 } satisfies Record<Filter, typeof Compass>;
 
 export type AccountStatistic = { label: string; value: number };
-export function AccountSettings({name,email,statistics,defaultExploreTab,tabOrder,onDefaultExploreTabChange,preferencesReady,onSaveName,onSavePassword,onClose}:{
+export function AccountSettings({name,email,statistics,defaultExploreTab,tabOrder,onDefaultExploreTabChange,preferencesReady,onSaveName,onSavePassword,onClose,usageRevision=0}:{
   name:string;email:string;statistics:AccountStatistic[];
   defaultExploreTab:Filter;tabOrder:readonly Filter[];onDefaultExploreTabChange:(tab:Filter)=>Promise<void>;demoMode:boolean;preferencesReady:boolean;
-  onSaveName:(value:string)=>Promise<void>;onSavePassword:(value:string)=>Promise<void>;onClose:()=>void;
+  onSaveName:(value:string)=>Promise<void>;onSavePassword:(value:string)=>Promise<void>;onClose:()=>void;usageRevision?:number;
 }) {
   const [displayName,setDisplayName]=useState(name);
   const [password,setPassword]=useState('');
@@ -54,13 +55,14 @@ export function AccountSettings({name,email,statistics,defaultExploreTab,tabOrde
   return <Modal onClose={close} wide>
     <div className="settings-dialog">
       <div className="modal-header"><div><h2>Settings</h2></div>
-        <button type="button" className="round-icon" aria-label="Close settings" onClick={close} disabled={!!working}><X size={19}/></button>
+        <button type="button" className="round-icon pf-icon-tooltip" aria-label="Close settings" onClick={close} disabled={!!working}><X size={19}/></button>
       </div>
       <div className="settings-dialog-scroll">
         <section aria-label="Portfolio statistics" className="settings-section">
           <div className="settings-section-heading"><h3>Library overview</h3></div>
           <div className="settings-stat-grid">{statistics.map(s=><div className="settings-stat" key={s.label}><strong>{s.value.toLocaleString()}</strong><span>{s.label}</span></div>)}</div>
         </section>
+        <MyImpactInsights revision={usageRevision}/>
         <section className="settings-section explore-settings" aria-label="Explore preferences">
           <div className="settings-section-heading explore-settings-header">
             <div><h3>Explore preferences</h3></div>
@@ -93,6 +95,8 @@ export function AccountSettings({name,email,statistics,defaultExploreTab,tabOrde
             <Button type="submit" disabled={!!working||!password||!confirmPassword}> {working==='password'?'Updating…':'Update password'} </Button>
           </form>
         </div>
+        {preferenceError&&<p role="alert" className="settings-feedback settings-feedback-error">{preferenceError}</p>}
+        {preferenceSaved&&<p role="status" className="settings-feedback settings-feedback-success">Default Explore tab saved.</p>}
         {error&&<p role="alert" className="settings-feedback settings-feedback-error">{error}</p>}
         {feedback&&<p role="status" className="settings-feedback settings-feedback-success"><CheckCircle2 size={16}/>{feedback}</p>}
       </div>

@@ -8,6 +8,14 @@ export type ChangelogEntry = {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.3.8', date: '2026-11-11', title: 'Prompt collections and simplified masthead', status: 'release',
+    changes: [
+      'Added prompt collections.',
+      'Simplified the masthead to just a line with a color gradient.',
+      'Smaller improvements: improved readability in prompt view'
+    ],
+  },
+  {
     version: '0.3.7', date: '2026-11-08', title: 'UX improvements', status: 'release',
     changes: [
       'Customizable Explore page.',

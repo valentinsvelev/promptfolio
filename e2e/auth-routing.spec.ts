@@ -41,7 +41,11 @@ test('entering demo and returning from guest mode maintain meaningful URLs', asy
   await expect(page.getByRole('heading', { name: 'Sign in to continue' })).toBeVisible();
   await page.getByRole('button', { name: /Try the full demo workspace/i }).click();
   await expect(page).toHaveURL(/#\/explore$/);
-  await expect(page.locator('main .page-heading h1')).toContainText('Explore.');
+  // The visible page-heading was replaced by the shared gradient separator.
+  // Its visually-hidden h1 still identifies the page for accessibility.
+  const separator = page.locator('main .workflow-masthead-explore');
+  await expect(separator).toBeVisible();
+  await expect(separator.locator('h1')).toHaveText('Explore.');
 });
 
 test('plain site URL defaults to sign-in and keeps URL query strings', async ({ page }) => {

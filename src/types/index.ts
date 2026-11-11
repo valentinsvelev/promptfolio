@@ -1,4 +1,4 @@
-export type View = 'explore' | 'mine' | 'teams' | 'reviews' | 'notifications' | 'admin' | 'changelog';
+export type View = 'explore' | 'mine' | 'collections' | 'teams' | 'reviews' | 'notifications' | 'admin' | 'changelog';
 export type Filter = 'All prompts' | 'Personal' | 'My teams' | 'Other teams' | 'Favorites';
 export type Lifecycle = 'draft' | 'published' | 'archived';
 export type Approval = 'experimental' | 'under_review' | 'approved' | 'deprecated';

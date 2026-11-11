@@ -1,0 +1,69 @@
+/* Static, high-contrast brand gradient separator.
+   From logo neutral to logo lavender and then the stronger brand purple.
+   No animation or moving highlight. */
+.workflow-masthead {
+  --pf-masthead-ink: #202732;
+  --pf-masthead-lavender: #98a4f7;
+  --pf-masthead-purple: #5363ef;
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 30px;
+  min-height: 0;
+  /* Extra space after the 30px separator area (the line is vertically centered). */
+  --pf-masthead-bottom-gap: 2px;
+  margin: 7px 0 var(--pf-masthead-bottom-gap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.workflow-masthead-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.workflow-masthead-line {
+  display: block;
+  width: 100%;
+  height: 2px;
+  flex: 0 0 100%;
+  border-radius: 999px;
+  pointer-events: none;
+  /* The brand accent (#5363ef) is much more distinct from the neutral.
+     Keep the lavender (#98a4f7) as a smooth transitional midpoint. */
+  background: linear-gradient(90deg,
+    var(--pf-masthead-ink) 0%,
+    var(--pf-masthead-lavender) 55%,
+    var(--pf-masthead-purple) 100%);
+  opacity: 1;
+  /* Fade to transparent at the physical ends, while leaving the
+     full neutral-to-lavender-to-purple gradient visible in the middle. */
+  -webkit-mask-image: linear-gradient(to right,
+    transparent 0%, #000 8%, #000 92%, transparent 100%);
+  mask-image: linear-gradient(to right,
+    transparent 0%, #000 8%, #000 92%, transparent 100%);
+}
+
+html[data-theme='dark'] .workflow-masthead {
+  --pf-masthead-ink: #ffffff;
+}
+
+@media (max-width: 760px) {
+  .workflow-masthead {
+    height: 30px;
+    --pf-masthead-bottom-gap: 2px;
+    margin: 5px 0 var(--pf-masthead-bottom-gap);
+  }
+}

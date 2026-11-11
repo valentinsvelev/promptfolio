@@ -28,7 +28,7 @@ export function ExploreTabsDialog({preferences,demoMode,onSave,onClose}:{
     <div className="explore-order-dialog">
       <div className="modal-header">
         <div><h2>Customize Explore tabs</h2><p>Move tabs into the order you prefer. Choose which tab opens by default.</p></div>
-        <button className="round-icon" type="button" aria-label="Close tab editor" onClick={close} disabled={saving}><X size={19}/></button>
+        <button className="round-icon pf-icon-tooltip" type="button" aria-label="Close tab editor" onClick={close} disabled={saving}><X size={19}/></button>
       </div>
       <div className="explore-order-body">
         <div className="explore-order-head"><span>Tab order</span><span>Move</span></div>
@@ -41,8 +41,8 @@ export function ExploreTabsDialog({preferences,demoMode,onSave,onClose}:{
               <span>Start here</span>
             </label>
             <div className="explore-order-movers">
-              <button type="button" aria-label={`Move ${tab} up`} title={`Move ${tab} up`} disabled={saving||index===0} onClick={()=>setTabOrder(order=>moveExploreTab(order,index,-1))}><ArrowUp size={16}/></button>
-              <button type="button" aria-label={`Move ${tab} down`} title={`Move ${tab} down`} disabled={saving||index===tabOrder.length-1} onClick={()=>setTabOrder(order=>moveExploreTab(order,index,1))}><ArrowDown size={16}/></button>
+              <button type="button" className="pf-icon-tooltip" aria-label={`Move ${tab} up`} disabled={saving||index===0} onClick={()=>setTabOrder(order=>moveExploreTab(order,index,-1))}><ArrowUp size={16}/></button>
+              <button type="button" className="pf-icon-tooltip" aria-label={`Move ${tab} down`} disabled={saving||index===tabOrder.length-1} onClick={()=>setTabOrder(order=>moveExploreTab(order,index,1))}><ArrowDown size={16}/></button>
             </div>
           </div>)}
         </div>

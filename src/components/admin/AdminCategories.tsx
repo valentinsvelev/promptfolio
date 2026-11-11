@@ -78,7 +78,7 @@ export function AdminCategories({categories,usedCategories,busy,onRename,onDelet
           <p>{pending.kind==='single'
             ? <>Delete <strong>{pending.name}</strong> from the category list? This cannot be undone. The database will prevent deletion if any saved version or proposal uses it.</>
             : 'Remove every category that has no references in saved versions or improvement proposals? Prompt content and history will not be changed.'}</p>
-        </div><button type="button" className="round-icon" aria-label="Close" disabled={busy} onClick={()=>setPending(null)}><X size={19}/></button></div>
+        </div><button type="button" className="round-icon pf-icon-tooltip" aria-label="Close" disabled={busy} onClick={()=>setPending(null)}><X size={19}/></button></div>
         <div className="confirm-actions">
           <Button type="button" variant="outline" disabled={busy} onClick={()=>setPending(null)}>Cancel</Button>
           <Button type="button" variant="outline" className="category-delete-button" disabled={busy} onClick={()=>void confirmDeletion()}><Trash2 size={15}/>{busy?'Deleting…':pending.kind==='single'?'Delete category':'Delete unused categories'}</Button>

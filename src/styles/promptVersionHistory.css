@@ -1,0 +1,67 @@
+/* Version history is a compact disclosure, only rendered for 2+ versions. */
+.prompt-version-history {
+  margin: 18px 0 4px;
+  overflow: hidden;
+  border: 1px solid #e1e7f0;
+  border-radius: 12px;
+  background: #f9fafc;
+}
+.prompt-version-history-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  color: #556477;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  transition: background .15s, color .15s;
+}
+.prompt-version-history-toggle:hover { background: #f0f3f8; color: #344259; }
+.prompt-version-history-toggle > svg:first-child { flex: 0 0 auto; color: #7b8ba5; }
+.prompt-version-history-title { flex: 1 1 auto; min-width: 0; }
+.prompt-version-history-count {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #eaf0f7;
+  color: #677891;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.prompt-version-history-toggle > svg:last-child { color: #8592a7; flex: 0 0 auto; transition: transform .15s; }
+.prompt-version-history-toggle > svg.rotated { transform: rotate(180deg); }
+.prompt-version-history .history-list {
+  padding: 0 14px 2px;
+  border-top: 1px solid #e1e7f0;
+  background: #fff;
+}
+.prompt-version-history .history-item { padding: 13px 0; }
+.prompt-version-history .history-item:last-child { border-bottom: 0; }
+.prompt-version-history .history-item .text-button { cursor: pointer; }
+
+html[data-theme='dark'] .prompt-version-history {
+  background: var(--pf-dark-panel-raised);
+  border-color: var(--pf-dark-border);
+}
+html[data-theme='dark'] .prompt-version-history-toggle { color: #d6dfed; }
+html[data-theme='dark'] .prompt-version-history-toggle:hover { background: #2e3b50; color: #f0f4fc; }
+html[data-theme='dark'] .prompt-version-history-toggle > svg:first-child,
+html[data-theme='dark'] .prompt-version-history-toggle > svg:last-child { color: #a0b0c7; }
+html[data-theme='dark'] .prompt-version-history-count { background: #354358; color: #d1dbeb; }
+html[data-theme='dark'] .prompt-version-history .history-list {
+  background: var(--pf-dark-panel);
+  border-color: var(--pf-dark-border);
+}
+html[data-theme='dark'] .prompt-version-history .history-item { border-color: var(--pf-dark-border); }
+
+@media (max-width: 520px) {
+  .prompt-version-history-toggle { padding: 11px 12px; gap: 8px; }
+  .prompt-version-history .history-item { flex-wrap: wrap; }
+  .prompt-version-history .history-right { justify-content: flex-start; }
+}

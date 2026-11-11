@@ -55,7 +55,7 @@ export function SharePromptEmailDialog({prompt,version,versions,senderEmail,send
   const previewState=isOutdated?'outdated':draft?'ready':'idle';
   return <Modal onClose={onClose} wide>
     <section className="share-email-dialog" aria-label="Generate email for prompt">
-      <div className="modal-header"><div><h2>Generate an email for the selected prompt</h2></div><button type="button" className="round-icon" aria-label="Close email generator" onClick={onClose}><X size={19}/></button></div>
+      <div className="modal-header"><div><h2>Generate an email for the selected prompt</h2></div><button type="button" className="round-icon pf-icon-tooltip" aria-label="Close email generator" onClick={onClose}><X size={19}/></button></div>
       <div className="share-email-body">
         <div className="share-email-control-row">
           <label className="field">Recipient name
@@ -73,7 +73,7 @@ export function SharePromptEmailDialog({prompt,version,versions,senderEmail,send
           <div className="field share-email-preview-field"><span>Preview</span>
             {previewState==='outdated'
               ? <button type="button" className="share-email-refresh-button" onClick={generatePreview} disabled={!recipientName.trim()} title="Refresh preview" aria-label="Refresh preview"><RotateCcw size={16}/> Refresh preview</button>
-              : <button type="button" className={`share-email-preview-trigger ${previewState==='ready'?'is-active':''}`} title="Generate email preview" aria-label={previewState==='ready'?'Email preview generated':'Generate email preview'} onClick={generatePreview} disabled={!recipientName.trim()}><Check size={21}/></button>}
+              : <button type="button" className={`share-email-preview-trigger pf-icon-tooltip ${previewState==='ready'?'is-active':''}`} aria-label={previewState==='ready'?'Email preview generated':'Generate email preview'} onClick={generatePreview} disabled={!recipientName.trim()}><Check size={21}/></button>}
           </div>
         </div>
         <div className="field share-email-template-field"><span>Template</span><div className="share-email-template-options" role="group" aria-label="Email template">

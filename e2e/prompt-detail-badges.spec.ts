@@ -9,7 +9,8 @@ test('prompt details show owner, category, and an icon-only approval indicator',
   }).click();
 
   const badges = page.locator('.detail-panel .status-row');
-  await expect(badges.locator('.flag')).toHaveText(['Operations', 'Writing']);
+  // Team and Category labels are now part of the visible badge text.
+  await expect(badges.locator('.flag')).toHaveText(['Team: Operations', 'Category: Writing']);
   await expect(badges).not.toContainText(/published|approved/i);
   await expect(badges.getByRole('img', { name: 'Approved' })).toBeVisible();
 });

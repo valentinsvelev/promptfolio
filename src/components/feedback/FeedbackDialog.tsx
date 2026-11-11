@@ -15,7 +15,7 @@ export function FeedbackDialog({onClose,onSubmitted}:{onClose:()=>void;onSubmitt
   }
   return <Modal onClose={()=>{if(!submitting)onClose()}}>
     <form className="feedback-dialog" onSubmit={submit}>
-      <div className="modal-header"><div><h2>Report an issue or idea</h2><p>Your feedback will become an issue in the Promptfolio GitHub repository.</p></div><button type="button" className="round-icon" onClick={onClose} disabled={submitting} aria-label="Close"><X size={18}/></button></div>
+      <div className="modal-header"><div><h2>Report an issue or idea</h2><p>Your feedback will become an issue in the Promptfolio GitHub repository.</p></div><button type="button" className="round-icon pf-icon-tooltip" onClick={onClose} disabled={submitting} aria-label="Close"><X size={18}/></button></div>
       <div className="feedback-fields">
         <label className="field">Feedback type<select value={kind} onChange={e=>setKind(e.target.value as 'bug'|'enhancement')}><option value="bug">Report an issue</option><option value="enhancement">Suggest a feature</option></select></label>
         <label className="field">Short title<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={120} minLength={5} required placeholder="Describe the issue or idea"/></label>

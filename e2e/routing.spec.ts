@@ -5,7 +5,7 @@ const demo = async (page: Page) => {
 };
 
 const expectPageTitle = async (page: Page, title: string) => {
-  await expect(page.locator('main .page-heading h1')).toContainText(title);
+  await expect(page.locator('main .workflow-masthead h1').first()).toContainText(title);
 };
 
 test('a direct My prompts URL survives navigation, history and reload', async ({ page }) => {
@@ -27,18 +27,16 @@ test('a direct My prompts URL survives navigation, history and reload', async ({
 
   await page.goto('./#/my-prompts');
   await page.reload();
-  await demo(page); // Demo mode does not persist login across reloads.
+  await demo(page);
   await expectPageTitle(page, 'My prompts');
 });
 
 test('the public changelog opens from a direct URL', async ({ page }) => {
   await page.goto('./#/changelog');
-  // The changelog has been public since Issue #11; no demo sign-in is needed.
   await expect(page.getByRole('region', { name: 'Promptfolio changelog' })).toBeVisible();
   await expectPageTitle(page, 'Changelog');
   await expect(page).toHaveURL(/#\/changelog$/);
   await page.getByRole('button', { name: /Back to library/i }).click();
-  // Visitors who are not signed in return to the sign-in page.
   await expect(page).toHaveURL(/#\/sign-in$/);
 });
 

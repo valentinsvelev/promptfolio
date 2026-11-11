@@ -23,13 +23,34 @@ test('footer version links to changelog for signed-out visitors', async ({ page 
   await expect(page).toHaveURL(/#\/sign-in$/);
 });
 
-test('guest can open changelog without losing the guest library', async ({ page }) => {
+test('guest can open changelog without losing the guest library', async ({ page, isMobile }) => {
   await page.goto('./#/sign-in');
   await page.getByRole('button', { name: /Continue as guest/i }).click();
-  await page.getByRole('link', { name: /View changelog for v/i }).click();
+  await expect(page).toHaveURL(/#\/explore$/);
+
+  const changelogLink = page.getByRole('link', { name: /View changelog for v/i });
+  await expect(changelogLink).toBeAttached();
+  if (isMobile) {
+    // The footer is far below the scrollable mobile library. Activating the
+    // real link with the keyboard avoids Playwright's scroll/click stability
+    // wait while still exercising the same anchor and navigation handler.
+    await changelogLink.focus();
+    await expect(changelogLink).toBeFocused();
+    await page.keyboard.press('Enter');
+  } else {
+    await changelogLink.click();
+  }
   await expect(page).toHaveURL(/#\/changelog$/);
   await expect(page.getByRole('region', { name: 'Promptfolio changelog' })).toBeVisible();
-  await page.getByRole('button', { name: 'Back to library' }).click();
+
+  const back = page.getByRole('button', { name: 'Back to library' });
+  if (isMobile) {
+    await back.focus();
+    await expect(back).toBeFocused();
+    await page.keyboard.press('Enter');
+  } else {
+    await back.click();
+  }
   await expect(page).toHaveURL(/#\/explore$/);
   await expect(page.locator('.prompt-row')).toHaveCount(5);
 });
