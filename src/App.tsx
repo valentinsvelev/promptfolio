@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, Bell, Check, CheckCircle2, ChevronDown, Clock3, Download, FileClock,
-  List, LockKeyhole, LogOut, MessageSquarePlus, Moon, Plus, RotateCcw,
+  List, LockKeyhole, LogOut, Menu, MessageSquarePlus, Moon, Plus, RotateCcw,
   Search, Settings2, SlidersHorizontal, Sun, Trash2, X, Pencil,
 } from 'lucide-react';
 import {accountAdmin, changePassword, client, demoIdentity, execute, favorite, guestSampleData, identity, isDemo, loadData, loadLikeCounts, signOut, updatePassword, updateDisplayName, loadListifyPreference, saveListifyPreference} from './services/api';
@@ -73,6 +73,8 @@ export default function App(){
   const importRef=useRef<HTMLInputElement|null>(null);
   const searchInputRef=useRef<HTMLInputElement|null>(null);
   const [accountOpen,setAccountOpen]=useState(false);
+  const [mobileNavOpen,setMobileNavOpen]=useState(false);
+  const mobileNavToggleRef=useRef<HTMLButtonElement|null>(null);
   const accountMenuRef=useRef<HTMLDivElement|null>(null);
   const accountTriggerRef=useRef<HTMLButtonElement|null>(null);
   const [noticeOpen,setNoticeOpen]=useState(false);
@@ -85,6 +87,25 @@ export default function App(){
     document.documentElement.dataset.theme=darkMode?'dark':'light';
     try{window.localStorage.setItem('promptfolio:theme',darkMode?'dark':'light')}catch{/* Storage may be unavailable. */}
   },[darkMode]);
+  useEffect(()=>{
+    if(!mobileNavOpen)return;
+    const dismissOnOutsideClick=(event:PointerEvent)=>{
+      if(event.target instanceof Element && !event.target.closest('.mobile-nav-toggle, .topbar .main-nav'))setMobileNavOpen(false);
+    };
+    const dismissOnEscape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){
+        setMobileNavOpen(false);
+        mobileNavToggleRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown',dismissOnOutsideClick);
+    document.addEventListener('keydown',dismissOnEscape);
+    return ()=>{
+      document.removeEventListener('pointerdown',dismissOnOutsideClick);
+      document.removeEventListener('keydown',dismissOnEscape);
+    };
+  },[mobileNavOpen]);
+  useEffect(()=>{setMobileNavOpen(false)},[view]);
   const [advancedOpen,setAdvancedOpen]=useState(false);
   const [facets,setFacets]=useState({team:'',owner:'',category:'',tag:'',lifecycle:'',approval:'',updated:''});
   const [recommendOnly,setRecommendOnly]=useState(false);
@@ -432,6 +453,7 @@ export default function App(){
     trackUsage(prompt.id,'open');
   }
   function navigate(v:View){
+    setMobileNavOpen(false);
     setView(v);resetDiscovery();
     if(v==='explore')setFilter(user?defaultExploreTab:'All prompts');
     if(v==='mine')setMineTrash(false);
@@ -449,15 +471,15 @@ export default function App(){
   }
   if(!ready)return <div className="boot"><Logo/><div className="loading-line"/></div>;
   if(user&&(recoveryMode||blocked?.must_change_password))return <div className="session-gate"><Logo/><form onSubmit={async e=>{e.preventDefault();try{if(blocked?.must_change_password)await accountAdmin('complete_temp_password',{password:newPassword});else await updatePassword(newPassword);setNewPassword('');setRecoveryMode(false);await reload();notify('Password updated.');}catch(err){notify(err instanceof Error?err.message:'Password update failed');}}}><h2>{blocked?.must_change_password?'Change your temporary password':'Reset your password'}</h2><p>{blocked?.must_change_password?'A personal password is required before you can access company prompts.':'Choose your new account password.'}</p><label className="field">New password<input type="password" required minLength={12} value={newPassword} onChange={e=>setNewPassword(e.target.value)} autoComplete="new-password"/></label><Button type="submit">Update password <ArrowRight size={16}/></Button></form>{toast&&<div className="toast">{toast}</div>}</div>;
-  return <div className="app"><header className="topbar"><div className="container topbar-in"><a href={`${import.meta.env.BASE_URL}#/${user||guest?'explore':'sign-in'}`} className="brand-link" onClick={e=>{e.preventDefault();if(user||guest)navigate('explore');else setView('sign-in')}}><Logo/></a>
-    {(user||guest)&&<nav className="main-nav" aria-label="Main navigation">{(guest?[['explore','Explore']] as [View,string][]:[['explore','Explore'],['mine','My prompts'],['collections','Collections'],['teams','Teams'],['reviews','Reviews']] as [View,string][]).map(([v,t])=><button key={v} className={`nav-link ${view===v?'active':''}`} onClick={()=>navigate(v)}>{t}{v==='reviews'&&reviewQueue.length>0&&<span className="nav-bubble">{reviewQueue.length}</span>}</button>)}{isAdmin&&<button className={`nav-link ${view==='admin'?'active':''}`} onClick={()=>navigate('admin')}>Admin</button>}</nav>}
+  return <div className="app"><header className="topbar"><div className="container topbar-in"><div className="topbar-brand-group"><a href={`${import.meta.env.BASE_URL}#/${user||guest?'explore':'sign-in'}`} className="brand-link" onClick={e=>{e.preventDefault();if(user||guest)navigate('explore');else setView('sign-in')}}><Logo/></a>{(user||guest)&&<button type="button" ref={mobileNavToggleRef} className="mobile-nav-toggle" aria-label={mobileNavOpen?'Close navigation menu':'Open navigation menu'} aria-controls="main-navigation" aria-expanded={mobileNavOpen} onClick={()=>setMobileNavOpen(open=>!open)}>{mobileNavOpen?<X size={19}/>:<Menu size={19}/>}</button>}</div>
+    {(user||guest)&&<nav id="main-navigation" className={`main-nav ${mobileNavOpen?'mobile-nav-open':''}`} aria-label="Main navigation">{(guest?[['explore','Explore']] as [View,string][]:[['explore','Explore'],['mine','My prompts'],['collections','Collections'],['teams','Teams'],['reviews','Reviews']] as [View,string][]).map(([v,t])=><button key={v} className={`nav-link ${view===v?'active':''}`} onClick={()=>navigate(v)}>{t}{v==='reviews'&&reviewQueue.length>0&&<span className="nav-bubble">{reviewQueue.length}</span>}</button>)}{isAdmin&&<button className={`nav-link ${view==='admin'?'active':''}`} onClick={()=>navigate('admin')}>Admin</button>}</nav>}
     <div className="topbar-right">{user&&<button type="button" className="feedback-trigger pf-icon-tooltip" aria-label="Report an issue or suggest an improvement" data-tooltip="Report an issue / Make a suggestion" onClick={()=>setFeedbackOpen(true)}><MessageSquarePlus size={17}/></button>}<button type="button" className="theme-toggle pf-icon-tooltip" aria-label={darkMode?'Switch to light mode':'Switch to dark mode'} aria-pressed={darkMode} onClick={()=>setDarkMode(v=>!v)}>{darkMode?<Sun size={17}/>:<Moon size={17}/>}</button>{user?<><button className="notice-trigger pf-icon-tooltip" aria-label="Open notifications" onClick={()=>setNoticeOpen(true)}><Bell size={17}/>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length>0&&<b>{data.notifications.filter(n=>n.recipient_id===user.id&&!n.read_at).length}</b>}</button><Button onClick={()=>setEditor({mode:'create'})} className="top-new"><Plus size={17}/> New prompt</Button><div className="account-wrap" ref={accountMenuRef}><button type="button" ref={accountTriggerRef} className="profile-button pf-icon-tooltip" aria-label="Open account menu" aria-expanded={accountOpen} aria-haspopup="true" onClick={()=>setAccountOpen(s=>!s)}><Avatar name={person(user.id)}/><ChevronDown size={14}/></button>{accountOpen&&<div className="account-menu"><div className="account-menu-head"><strong>{person(user.id)}</strong><span>{user.email}</span></div><div className="menu-separator"/><button onClick={()=>{setSettingsOpen(true);setAccountOpen(false)}}><Settings2 size={16}/> Settings</button><button onClick={()=>{navigate('changelog');setAccountOpen(false)}} aria-current={view==='changelog'?'page':undefined}><FileClock size={16}/> Changelog</button><button onClick={async()=>{if(!isDemo)await signOut();setUser(null);setData(emptyData());setAccountOpen(false);setSelectedId(null);setView('sign-in')}}><LogOut size={16}/> Sign out</button></div>}</div></>:guest?<Button variant="outline" onClick={()=>{setGuest(false);setData(emptyData());setSelectedId(null);setView('sign-in')}}>Sign in <ArrowRight size={15}/></Button>:null}</div></div></header>
 
   {!user&&(!guest||isAuthRoute(view))&&view!=='changelog'?<main className="container"><Auth authRoute={view==='sign-up'?'signup':'login'} onModeChange={mode=>setView(mode==='signup'?'sign-up':'sign-in')} onLogin={async u=>{setGuest(false);setUser(u);await reload()}} onDemo={async()=>{setGuest(false);setUser(demoIdentity);await reload()}} onGuest={()=>{setData(guestSampleData());setGuest(true);setView('explore');setSelectedId(null)}} busy={busy} message={notify} onNotice={notify}/></main>:<main className="container app-main">
   {/* One consistent separator for every content page; authentication screens use their own layout. */}
   <WorkflowMasthead kind={view==='mine'?'mine':view==='collections'?'collections':view==='teams'?'teams':view==='reviews'?'reviews':view==='admin'?'admin':view==='changelog'?'changelog':'explore'}/>
   {hasExplore?<>
-  <div className="filters-bar"><div className="filter-list">{view==='explore'?(guest?(['All prompts'] as Filter[]):explorePrefs.tabOrder).map(x=><button className={`filter-chip ${filter===x?'selected':''}`} key={x} onClick={()=>{explicitExploreSelection.current=true;setFilter(x);resetDiscovery()}}>{x}</button>):<><button className={`filter-chip ${!mineTrash?'selected':''}`} onClick={()=>setMineTrash(false)}>My library</button><button className={`filter-chip ${mineTrash?'selected':''}`} onClick={()=>setMineTrash(true)}>Trash</button></>}</div>{view==='explore'&&user&&<button type="button" className="explore-edit-tabs" aria-label="Edit Explore tabs" title="Customize Explore tabs" onClick={()=>setExploreTabEditorOpen(true)} disabled={!explorePrefsReady}><Pencil size={14}/> Edit</button>}{view==='mine'&&<button className="import-control" onClick={()=>importRef.current?.click()}><Plus size={13}/> Import prompt</button>}</div>
+  <div className="filters-bar"><div className="filter-list">{view==='explore'?(guest?(['All prompts'] as Filter[]):explorePrefs.tabOrder).map(x=><button className={`filter-chip ${filter===x?'selected':''}`} key={x} onClick={()=>{explicitExploreSelection.current=true;setFilter(x);resetDiscovery()}}>{x}</button>):<><button className={`filter-chip ${!mineTrash?'selected':''}`} onClick={()=>setMineTrash(false)}>My library</button><button className={`filter-chip ${mineTrash?'selected':''}`} onClick={()=>setMineTrash(true)}>Trash</button></>}</div>{view==='explore'&&user&&<button type="button" className="explore-edit-tabs" aria-label="Edit Explore tabs" title="Customize Explore tabs" onClick={()=>setExploreTabEditorOpen(true)} disabled={!explorePrefsReady}><Pencil size={14}/><span className="explore-edit-label">Edit</span></button>}{view==='mine'&&<button className="import-control" onClick={()=>importRef.current?.click()}><Plus size={13}/> Import prompt</button>}</div>
 
   {view==='mine'&&mineTrash?<div className="trash-container"><div className="list-top"><h2>Recently deleted</h2></div>{data.prompts.filter(p=>p.deleted_at&&(p.owner_user_id===user?.id||p.created_by===user?.id)).map(p=><div className="trash-item" key={p.id}><Trash2 size={18}/><div><strong>{official(p)?.title||'Untitled prompt'}</strong><p>Deleted {when(p.deleted_at||undefined)}</p></div><div className="trash-item-actions"><Button variant="outline" disabled={busy} onClick={()=>doAction(()=>execute('soft_delete_prompt',{pid:p.id,recover:true}),'Prompt restored.')}><RotateCcw size={15}/> Restore</Button>{(p.owner_user_id===user?.id||(p.owner_team_id&&(isManager(p.owner_team_id)||isAdmin)))&&<Button variant="outline" className="trash-delete-forever" disabled={busy} onClick={()=>askPermanentlyDelete(p)}><Trash2 size={15}/> Delete permanently</Button>}</div></div>)}{!data.prompts.some(p=>p.deleted_at&&(p.owner_user_id===user?.id||p.created_by===user?.id))&&<Empty title="Your trash is empty" description="Deleted prompts will appear here while they can still be restored." icon={Trash2}/>}</div>:<div className="workspace"><div className="prompt-results"><div className="list-top list-top-tools">
     <span className="results-count" role="status">{searchable.length} {searchable.length===1?'result':'results'}</span>

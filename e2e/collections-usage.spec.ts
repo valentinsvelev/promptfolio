@@ -1,4 +1,5 @@
 import {expect,test} from '@playwright/test';
+import { closeMobilePromptDetail, navigateToPage } from './helpers/navigation';
 
 // Demo mode only: never connects to the production Supabase project.
 test.beforeEach(async({page})=>{
@@ -6,8 +7,8 @@ test.beforeEach(async({page})=>{
   await page.getByRole('button',{name:/Try the full demo workspace/i}).click();
 });
 
-test('create a personal collection, add a prompt and open it without per-prompt analytics',async({page})=>{
-  await page.getByRole('button',{name:'Collections',exact:true}).click();
+test('create a personal collection, add a prompt and open it without per-prompt analytics',async({page,isMobile})=>{
+  await navigateToPage(page, 'Collections', isMobile);
   // The redundant 'Prompt collections' heading was removed. Check the page's
   // shared gradient separator and its collection sidebar instead.
   await expect(page.locator('main .workflow-masthead-collections')).toBeVisible();
@@ -36,11 +37,8 @@ test('settings show personal aggregate impact, excluding your own activity by de
   // One deliberate open by the signed-in demo user should not inflate default adoption.
   await page.locator('.prompt-row').filter({hasText:'Turn meeting notes into action items'}).click();
   if(isMobile){
-    // On mobile, selecting a prompt opens a full-screen detail panel over the top bar.
-    // Close it before opening Settings; this does not undo the recorded open.
-    await expect(page.locator('.detail-panel.mobile-visible')).toBeVisible();
-    await page.getByRole('button',{name:'Back'}).click();
-    await expect(page.locator('.detail-panel.mobile-visible')).toHaveCount(0);
+    // Close the overlay before opening Settings; the deliberate open remains recorded.
+    await closeMobilePromptDetail(page);
   }
   const impact=await openSettings(page);
   await expect(impact).toBeVisible();
@@ -59,8 +57,8 @@ test('settings show personal aggregate impact, excluding your own activity by de
   await expect(impact).toContainText('Unique people');
 });
 
-test('no usage dashboard appears on the Teams page',async({page})=>{
-  await page.getByRole('button',{name:'Teams',exact:true}).click();
+test('no usage dashboard appears on the Teams page',async({page,isMobile})=>{
+  await navigateToPage(page, 'Teams', isMobile);
   await expect(page.getByRole('region',{name:/usage insights/i})).toHaveCount(0);
   const impact=await openSettings(page);
   await expect(impact).toBeVisible();

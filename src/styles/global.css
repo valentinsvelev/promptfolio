@@ -1731,3 +1731,113 @@ html[data-theme='dark'] .topbar .main-nav .nav-link.active {
 .collection-item-controls .pf-icon-tooltip:focus-visible::after {
   transform: translateY(0);
 }
+
+
+/* MOBILE HEADER & EXPLORE DENSITY — November 2026
+   Only the <=760px layout changes; desktop navigation remains unchanged. */
+.topbar-brand-group{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0}
+.mobile-nav-toggle{display:none}
+@media (max-width:760px){
+  /* Replace the old horizontally swipeable navigation row with a menu beside
+     the brand. The menu floats over the page rather than taking up height. */
+  .topbar:has(.main-nav){height:66px;margin-bottom:0;position:relative;z-index:50}
+  .topbar-in{height:100%;position:relative;gap:8px}
+  /* Give the menu control enough breathing room beside the logo. */
+  .topbar-brand-group{gap:20px}
+  .mobile-nav-toggle{
+    display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;
+    width:40px;height:40px;padding:0;border:1px solid var(--line);
+    border-radius:10px;background:var(--card);color:var(--ink);
+    transition:background-color .15s,border-color .15s;
+  }
+  .mobile-nav-toggle:hover,.mobile-nav-toggle[aria-expanded='true']{
+    background:var(--soft);border-color:#98a4f7;color:var(--accent);
+  }
+  .topbar .main-nav{
+    display:none;position:absolute;top:calc(100% + 8px);left:0;right:auto;bottom:auto;
+    flex-direction:column;align-items:stretch;justify-content:flex-start;
+    gap:4px;width:min(300px,calc(100vw - 36px));height:auto;
+    max-height:min(68dvh,460px);margin:0;padding:9px;
+    overflow-x:hidden;overflow-y:auto;white-space:normal;
+    border:1px solid var(--line);border-radius:14px;
+    background:var(--card);box-shadow:0 20px 45px rgba(14,20,35,.22);
+    z-index:60;overscroll-behavior:contain;
+  }
+  .topbar .main-nav.mobile-nav-open{display:flex}
+  .topbar .main-nav .nav-link{
+    width:100%;min-height:43px;justify-content:flex-start;align-self:stretch;
+    padding:11px 14px;border:0;border-radius:9px;
+    font-size:13px;text-align:left;
+  }
+  .topbar .main-nav .nav-link.active{
+    background:#eef0ff;color:#4656bb;box-shadow:inset 3px 0 0 #7f8aeb;
+  }
+  html[data-theme='dark'] .mobile-nav-toggle{
+    background:#202938;border-color:#405069;color:#d9e0ee;
+  }
+  html[data-theme='dark'] .mobile-nav-toggle:hover,
+  html[data-theme='dark'] .mobile-nav-toggle[aria-expanded='true']{background:#303a5d;border-color:#8e99ed}
+  html[data-theme='dark'] .topbar .main-nav{background:#1b2533;border-color:#41506a}
+  html[data-theme='dark'] .topbar .main-nav .nav-link.active{
+    background:#303a5d;color:#e9edff;box-shadow:inset 3px 0 0 #98a4f7;
+  }
+
+  /* Keep all five Explore tabs visible without horizontal scrolling. The
+     mobile edit control uses only its pencil icon and remains accessible. */
+  .app-main .filters-bar{gap:5px;padding:10px 0 13px}
+  .app-main .filters-bar .filter-list{
+    flex:1 1 auto;min-width:0;max-width:none;
+    overflow:visible;flex-wrap:nowrap;justify-content:space-between;gap:2px;
+  }
+  .app-main .filters-bar .filter-chip{
+    flex:0 1 auto;min-width:0;padding:9px 4px;
+    font-size:clamp(9px,2.55vw,11px);letter-spacing:-.02em;
+    white-space:nowrap;line-height:1.15;border-radius:7px;
+  }
+  .app-main .filters-bar .explore-edit-tabs{
+    display:inline-flex;flex:0 0 33px;width:33px;height:34px;
+    align-items:center;justify-content:center;padding:0;
+    border-radius:8px;gap:0;
+  }
+  .app-main .filters-bar .explore-edit-tabs svg{width:16px;height:16px}
+  .app-main .filters-bar .explore-edit-label{display:none}
+
+  /* On phones, position the result count beside the second toolbar row
+     rather than adding a dedicated third row. Keeping its DOM position
+     unchanged preserves the desktop layout and accessible status text. */
+  .prompt-results .list-top-tools,
+  .prompt-results .list-top-tools:has(.prompt-quick-filters){
+    position:relative;
+    display:flex;flex-direction:column;align-items:stretch;gap:0;
+    margin-bottom:5px;
+  }
+  .prompt-results .list-top-tools .prompt-toolbar{
+    order:1;margin:0;width:100%;max-width:100%;
+    justify-content:center;align-items:center;gap:9px;
+  }
+  .prompt-results .list-top-tools:has(.prompt-quick-filters) .prompt-toolbar{
+    flex:0 1 auto;width:100%;margin:0;align-items:stretch;
+  }
+  /* Center the four action buttons as one group within the full results width.
+     The absolute-positioned result count stays at the left of the same row. */
+  .prompt-results .list-top-tools .prompt-toolbar-actions{
+    align-self:center;
+    margin-left:0;
+    margin-right:0;
+  }
+  .prompt-results .list-top-tools .results-count{
+    position:absolute;
+    left:0;
+    bottom:calc((var(--pf-result-toolbar-icon-size) - 16.5px) / 2);
+    width:auto;
+    margin:0;padding:0;line-height:1.5;
+    text-align:left;
+  }
+}
+@media (max-width:360px){
+  /* A little less spacing on the smallest phones, still much more than before. */
+  .app-main .filters-bar .filter-chip{font-size:9px;padding-inline:2px}
+  .app-main .filters-bar{gap:3px}
+  .app-main .filters-bar .explore-edit-tabs{flex-basis:30px;width:30px;height:32px}
+  .topbar-brand-group{gap:16px}
+}

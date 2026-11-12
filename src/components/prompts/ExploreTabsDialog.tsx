@@ -27,11 +27,11 @@ export function ExploreTabsDialog({preferences,demoMode,onSave,onClose}:{
   return <Modal onClose={close}>
     <div className="explore-order-dialog">
       <div className="modal-header">
-        <div><h2>Customize Explore tabs</h2><p>Move tabs into the order you prefer. Choose which tab opens by default.</p></div>
+        <div><h2>Customize Explore tabs</h2></div>
         <button className="round-icon pf-icon-tooltip" type="button" aria-label="Close tab editor" onClick={close} disabled={saving}><X size={19}/></button>
       </div>
       <div className="explore-order-body">
-        <div className="explore-order-head"><span>Tab order</span><span>Move</span></div>
+        {/* <div className="explore-order-head"><span>Tab order</span><span>Move</span></div> */}
         <div className="explore-order-list" aria-label="Explore tab order">
           {tabOrder.map((tab,index)=><div key={tab} className="explore-order-item">
             <GripVertical size={17} aria-hidden="true" className="explore-grip"/>
@@ -47,7 +47,7 @@ export function ExploreTabsDialog({preferences,demoMode,onSave,onClose}:{
           </div>)}
         </div>
         {error&&<p role="alert" className="explore-pref-error">{error}</p>}
-        <p className="explore-order-hint">{demoMode?'Demo preferences are saved on this browser.':'Your choices will appear on every device where you sign in.'}</p>
+        {/* <p className="explore-order-hint">{demoMode?'Demo preferences are saved on this browser.':'Your choices will appear on every device where you sign in.'}</p> */}
       </div>
       <div className="explore-order-actions">
         <button type="button" className="explore-reset-order" disabled={saving} onClick={()=>{setTabOrder([...EXPLORE_TABS]);setDefaultTab('All prompts')}}><RotateCcw size={14}/> Reset</button>

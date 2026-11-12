@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigateToPage } from './helpers/navigation';
 
 async function enterDemo(page: import('@playwright/test').Page) {
   await page.goto('./#/sign-in');
@@ -55,7 +56,7 @@ test('guest can open changelog without losing the guest library', async ({ page,
   await expect(page.locator('.prompt-row')).toHaveCount(5);
 });
 
-test('default Explore tab selection is saved in the demo and restored after re-entry', async ({ page }) => {
+test('default Explore tab selection is saved in the demo and restored after re-entry', async ({ page, isMobile }) => {
   await enterDemo(page);
   await openSettings(page);
   const options=page.getByRole('radiogroup', { name: 'Default Explore tab' });
@@ -66,8 +67,8 @@ test('default Explore tab selection is saved in the demo and restored after re-e
   await expect(page.locator('.filter-chip.selected')).toHaveText('Favorites');
 
   await page.locator('.filter-chip').filter({ hasText: 'Personal' }).click();
-  await page.getByRole('button', { name: 'My prompts', exact: true }).click();
-  await page.getByRole('button', { name: 'Explore', exact: true }).click();
+  await navigateToPage(page, 'My prompts', isMobile);
+  await navigateToPage(page, 'Explore', isMobile);
   await expect(page.locator('.filter-chip.selected')).toHaveText('Favorites');
 
   await page.reload();
@@ -75,12 +76,12 @@ test('default Explore tab selection is saved in the demo and restored after re-e
   await expect(page.locator('.filter-chip.selected')).toHaveText('Favorites');
 });
 
-test('browser Back to Explore restores the saved default', async ({ page }) => {
+test('browser Back to Explore restores the saved default', async ({ page, isMobile }) => {
   await enterDemo(page);
   await openSettings(page);
   await page.getByRole('radio', { name: 'My teams' }).click();
   await page.getByRole('button', { name: 'Close settings' }).click();
-  await page.getByRole('button', { name: 'My prompts', exact: true }).click();
+  await navigateToPage(page, 'My prompts', isMobile);
   await page.goBack();
   await expect(page).toHaveURL(/#\/explore$/);
   await expect(page.locator('.filter-chip.selected')).toHaveText('My teams');

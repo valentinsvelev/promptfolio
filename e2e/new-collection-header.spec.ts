@@ -1,9 +1,10 @@
 import {expect,test} from '@playwright/test';
+import { navigateToPage } from './helpers/navigation';
 
 test('New collection is in the left column beside the detail panel, not the header',async({page,isMobile})=>{
   await page.goto('./');
   await page.getByRole('button',{name:/Try the full demo workspace/i}).click();
-  await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Collections'}).click();
+  await navigateToPage(page, 'Collections', isMobile);
   await expect(page.locator('.topbar').getByRole('button',{name:'New collection'})).toHaveCount(0);
 
   const left=page.locator('.collections-left-rail');

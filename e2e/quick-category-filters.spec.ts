@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigateToPage } from './helpers/navigation';
 
 // Runs in built-in demo mode; no production Supabase access.
 test.beforeEach(async ({ page }) => {
@@ -20,8 +21,8 @@ test('Other teams shows category quick filters scoped to other teams', async ({ 
   await expect(page.locator('.prompt-row')).toHaveCount(2);
 });
 
-test('My prompts shows categories scoped to owned or created prompts', async ({ page }) => {
-  await page.getByRole('button', { name: 'My prompts', exact: true }).click();
+test('My prompts shows categories scoped to owned or created prompts', async ({ page, isMobile }) => {
+  await navigateToPage(page, 'My prompts', isMobile);
   const categories = page.getByRole('group', { name: 'Select a category' });
   await expect(categories.getByRole('button', { name: 'Writing', exact: true })).toBeVisible();
   await expect(categories.getByRole('button', { name: 'Productivity', exact: true })).toBeVisible();

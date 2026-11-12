@@ -190,7 +190,8 @@ const sharingJs=ts.transpileModule(sharingSrc,{fileName:'sharing.ts',compilerOpt
 const sharingModule={exports:{}};
 vm.runInNewContext(`(function(module,exports){${sharingJs}\n})`)(sharingModule,sharingModule.exports);
 const {combineClipboardText,promptEmailDraft}=sharingModule.exports;
-assert.equal(combineClipboardText('Earlier note','Current prompt'), 'Earlier note\n\n---\n\nCurrent prompt');
+// Combining places the selected prompt first, followed by a blank line and existing clipboard text.
+assert.equal(combineClipboardText('Earlier note','Current prompt'), 'Current prompt\n\nEarlier note');
 assert.equal(combineClipboardText('','Current prompt'),'Current prompt');
 const base={recipient:'colleague@example.com',sender:'user@example.com',title:'Test prompt',description:'A useful prompt',content:'Confidential prompt body',promptUrl:'https://example.org/promptfolio/?prompt=abc'};
 const safeDraft=promptEmailDraft({...base,includeContent:false});

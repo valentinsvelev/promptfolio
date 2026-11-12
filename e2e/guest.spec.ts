@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { closeMobilePromptDetail } from './helpers/navigation';
 
 // Each test gets a fresh browser context with Promptfolio's built-in sample data.
 test.beforeEach(async ({ page }) => {
@@ -7,23 +8,14 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('.prompt-row')).toHaveCount(5);
 });
 
-
 test('guest can browse the sample prompt library', async ({ page }) => {
-  await expect(page).toHaveURL(/#\/explore$/);
-
-  await expect(
-    page.locator('.prompt-row').filter({
-      hasText: 'Turn meeting notes into action items',
-    })
-  ).toBeVisible();
-
-  await expect(
-    page.locator('.prompt-row').filter({
-      hasText: 'Explore a market opportunity',
-    })
-  ).toBeVisible();
+  // Explore now uses a gradient separator instead of a visible page heading.
+  // Its visually hidden h1 still exposes the page title to assistive technology.
+  const separator = page.locator('main .workflow-masthead-explore');
+  await expect(separator).toBeVisible();
+  await expect(separator.locator('h1')).toHaveText('Explore.');
+  await expect(page.locator('.prompt-row').first()).toBeVisible();
 });
-
 
 test('guest can search prompts by keyword', async ({ page }) => {
   await page.getByRole('button', { name: 'Keywords search' }).click();
@@ -64,6 +56,5 @@ test('a guest can open and close a prompt on mobile', async ({ page, isMobile })
   await expect(page.locator('.detail-panel .detail-title'))
     .toHaveText('Turn meeting notes into action items');
 
-  await page.getByRole('button', { name: 'Back' }).click();
-  await expect(page.locator('.detail-panel.mobile-visible')).toHaveCount(0);
+  await closeMobilePromptDetail(page);
 });

@@ -23,9 +23,10 @@ git clone https://github.com/valentinsvelev/promptfolio.git
 cd promptfolio
 npm install
 npm run dev
+npm run test:browser
 ```
 
-Without Supabase configuration, the app runs with local demo data. Run `npm run verify` before committing changes.
+Without Supabase configuration, the app runs with local demo data. Run `npm run verify` and `npm run test:browser` before committing changes.
 
 ## Connect Supabase
 

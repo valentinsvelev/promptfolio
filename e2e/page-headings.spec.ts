@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { navigateToPage } from './helpers/navigation';
 
 const pages = [
   ['Explore', 'explore', 'Explore.'],
@@ -27,14 +28,12 @@ async function expectSeparator(page: Page, kind: string, title: string) {
   return separator;
 }
 
-test('every workspace page uses the same compact static gradient separator', async ({ page }) => {
+test('every workspace page uses the same compact static gradient separator', async ({ page, isMobile }) => {
   await page.goto('./#/sign-in');
   await page.getByRole('button', { name: /Try the full demo workspace/i }).click();
-  const nav = page.getByRole('navigation', { name: 'Main navigation' });
-
   for (const [tab, kind, title] of pages) {
     await test.step(tab, async () => {
-      await nav.getByRole('button', { name: new RegExp(`^${tab}(?:\s+\d+)?$`) }).click();
+      await navigateToPage(page, tab, isMobile);
       await expectSeparator(page, kind, title);
     });
   }

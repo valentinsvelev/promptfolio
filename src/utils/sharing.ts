@@ -1,8 +1,7 @@
-/** Pure helpers for clipboard and user-initiated email sharing. No credentials or network requests. */
 export function combineClipboardText(existing: string, promptText: string): string {
   const previous = existing.trimEnd();
   const next = promptText.trim();
-  return previous ? `${previous}\n\n---\n\n${next}` : next;
+  return previous ? `${next}\n\n${previous}` : next;
 }
 
 export function isEmailAddress(value: string): boolean {

@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import packageInfo from '../../../package.json';
 import { changelog } from './changelog';
@@ -5,6 +6,14 @@ import { when } from '../../utils/format';
 import { Button } from '../ui';
 
 export function ChangelogPage({onBack}:{onBack:()=>void}){
+  // The footer link starts near the bottom of the previous page. React route
+  // changes do not reset document scrolling, so start a new changelog visit
+  // at its beginning before the browser paints it. 'instant' also overrides
+  // the global html { scroll-behavior: smooth } for this navigation.
+  useLayoutEffect(() => {
+    window.scrollTo({top: 0, left: 0, behavior: 'instant'});
+  }, []);
+
   return <section className="changelog-page" aria-label="Promptfolio changelog">
     <div className="changelog-topline"><Button type="button" variant="outline" onClick={onBack}><ArrowLeft size={15}/> Back to library</Button><span>Current version: v{packageInfo.version}</span></div>
     <div className="changelog-timeline">

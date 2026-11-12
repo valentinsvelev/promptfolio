@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { navigateToPage } from './helpers/navigation';
 
 const demo = async (page: Page) => {
   await page.getByRole('button', { name: /Try the full demo workspace/i }).click();
@@ -8,13 +9,13 @@ const expectPageTitle = async (page: Page, title: string) => {
   await expect(page.locator('main .workflow-masthead h1').first()).toContainText(title);
 };
 
-test('a direct My prompts URL survives navigation, history and reload', async ({ page }) => {
+test('a direct My prompts URL survives navigation, history and reload', async ({ page, isMobile }) => {
   await page.goto('./#/my-prompts');
   await demo(page);
   await expect(page).toHaveURL(/\/promptfolio\/#\/my-prompts$/);
   await expectPageTitle(page, 'My prompts');
 
-  await page.getByRole('button', { name: 'Explore', exact: true }).click();
+  await navigateToPage(page, 'Explore', isMobile);
   await expect(page).toHaveURL(/#\/explore$/);
   await expectPageTitle(page, 'Explore.');
 
