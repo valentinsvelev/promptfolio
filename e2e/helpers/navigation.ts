@@ -14,21 +14,16 @@ export async function navigateToPage(page: Page, name: string, isMobile: boolean
   if (isMobile) await expect(nav).toBeHidden();
 }
 
-/** Close the mobile prompt overlay using the same Back control, with keyboard fallback.
- * The topbar can cover the first 66px of the panel on narrow mobile viewports,
- * which makes a real pointer click non-interactable in Chromium's layout engine.
+/** Close the mobile detail overlay using the X in the badge row.
+ * Exercise a real pointer click: a keyboard fallback would mask a blocked button.
  */
 export async function closeMobilePromptDetail(page: Page) {
   const panel = page.locator('.detail-panel.mobile-visible');
   await expect(panel).toBeVisible();
-  const back = panel.locator('button.mobile-back');
-  await expect(back).toBeAttached();
-  try {
-    await back.click({ timeout: 1500 });
-  } catch {
-    await back.focus();
-    await expect(back).toBeFocused();
-    await page.keyboard.press('Enter');
-  }
+  const close = panel.locator('.status-row button.detail-mobile-close');
+  await expect(close).toBeVisible();
+  await expect(close).toHaveAccessibleName('Back');
+  await expect(close).toBeInViewport();
+  await close.click();
   await expect(panel).toHaveCount(0);
 }

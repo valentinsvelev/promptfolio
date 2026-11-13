@@ -16,25 +16,34 @@ test('mobile prompt detail covers the header and keeps its badges and close butt
   await expect(close).toBeVisible();
   await expect(close).toBeInViewport();
 
-  // The overlay must escape the underlying page layout and sit over the topbar.
+  // Test the observable requirement rather than comparing the panel's CSS width
+  // to window.innerWidth (which can differ from the content viewport on mobile).
+  // The panel must escape the list's layout, cover the header, and receive taps.
   const placement = await detail.evaluate(panel => {
     const button = panel.querySelector<HTMLButtonElement>('.detail-mobile-close')!;
-    const rect = panel.getBoundingClientRect();
+    const header = document.querySelector<HTMLElement>('.topbar')!;
+    const headerRect = header.getBoundingClientRect();
     const buttonRect = button.getBoundingClientRect();
-    const hit = document.elementFromPoint(
+    const viewportWidth = document.documentElement.clientWidth;
+    const headerHit = document.elementFromPoint(
+      Math.max(1, Math.min(viewportWidth - 1, headerRect.left + headerRect.width / 2)),
+      Math.max(1, Math.min(window.innerHeight - 1, headerRect.top + headerRect.height / 2)),
+    );
+    const closeHit = document.elementFromPoint(
       buttonRect.left + buttonRect.width / 2,
       buttonRect.top + buttonRect.height / 2,
     );
     return {
       portalledToBody: panel.parentElement === document.body,
-      fillsViewport: Math.abs(rect.left) < 2 && Math.abs(rect.top) < 2 &&
-        Math.abs(rect.width - window.innerWidth) < 2,
-      closeReceivesTaps: hit === button || button.contains(hit),
+      fixedPosition: getComputedStyle(panel).position === 'fixed',
+      coversHeader: headerHit === panel || (headerHit !== null && panel.contains(headerHit)),
+      closeReceivesTaps: closeHit === button || button.contains(closeHit),
     };
   });
   expect(placement).toEqual({
     portalledToBody: true,
-    fillsViewport: true,
+    fixedPosition: true,
+    coversHeader: true,
     closeReceivesTaps: true,
   });
 
