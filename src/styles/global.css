@@ -1841,3 +1841,80 @@ html[data-theme='dark'] .topbar .main-nav .nav-link.active {
   .app-main .filters-bar .explore-edit-tabs{flex-basis:30px;width:30px;height:32px}
   .topbar-brand-group{gap:16px}
 }
+
+/* Mobile prompt detail: compact close button aligned with the badge row.
+   The X uses the existing onClose action and is hidden on desktop. */
+.detail-mobile-close { display: none; }
+
+@media (max-width: 760px) {
+  .detail-panel.mobile-visible {
+    /* Portalled to <body>: cover the entire phone, above the 50-layer header,
+       but below the normal 100-layer dialogs and 200-layer notifications. */
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    margin: 0;
+    z-index: 70;
+    overflow-x: hidden;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* No redundant header or offset: the badges now start at the top. */
+  .detail-panel.mobile-visible .detail-scroll {
+    padding-top: calc(26px + env(safe-area-inset-top, 0px));
+  }
+
+  .detail-panel.mobile-visible .status-row {
+    position: relative;
+    min-height: 36px;
+    padding-right: 45px;
+    align-items: center;
+  }
+
+  .detail-panel.mobile-visible .detail-mobile-close {
+    display: inline-flex;
+    position: absolute;
+    top: 0;
+    right: 0;
+    box-sizing: border-box;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    border: 1px solid #d7deef;
+    border-radius: 10px;
+    background: #f3f5fc;
+    color: #536074;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .detail-panel.mobile-visible .detail-mobile-close:hover {
+    background: #e9edff;
+    border-color: #a6b0ec;
+  }
+
+  .detail-panel.mobile-visible .detail-mobile-close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  html[data-theme='dark'] .detail-panel.mobile-visible .detail-mobile-close {
+    background: var(--pf-dark-panel-raised);
+    border-color: var(--pf-dark-border);
+    color: var(--pf-dark-text);
+  }
+
+  html[data-theme='dark'] .detail-panel.mobile-visible .detail-mobile-close:hover {
+    background: #364365;
+    border-color: #7888c9;
+  }
+}
